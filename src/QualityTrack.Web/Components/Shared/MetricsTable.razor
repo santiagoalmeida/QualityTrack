@@ -1,0 +1,52 @@
+@* Metrics of a project in one run: previous value, current value, change and goal. *@
+<div class="table-wrap">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Métrica</th>
+                <th class="num">Anterior</th>
+                <th class="num">Actual</th>
+                <th>Cambio</th>
+                <th>Meta</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var metric in Metrics)
+            {
+                <tr>
+                    <td>
+                        @if (LinkFor?.Invoke(metric) is { } url)
+                        {
+                            <a class="metric-link" href="@url">@metric.Metric.Name <span class="row-action">Ver incidencias →</span></a>
+                        }
+                        else
+                        {
+                            @metric.Metric.Name
+                        }
+                    </td>
+                    <td class="num muted">@(metric.Previous is { } previous ? Format.Value(metric.Metric, previous) : "—")</td>
+                    <td class="num"><strong>@Format.Value(metric.Metric, metric.Current)</strong></td>
+                    <td><DeltaBadge Comparison="metric" /></td>
+                    <td class="goal">
+                        @if (metric.Goal is { } goal)
+                        {
+                            <ProgressBar Value="goal.Progress" Met="goal.Met" Label="@($"Avance de {metric.Metric.Name}")" />
+                            <span class="muted">
+                                @(goal.Met ? "✓ cumplida" : Format.Percent(goal.Progress)) · meta @Format.Value(metric.Metric, goal.Target)
+                            </span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<MetricComparison> Metrics { get; set; } = [];
+
+    /// <summary>Where a metric's name leads, or null to show it as plain text.</summary>
+    [Parameter]
+    public Func<MetricComparison, string?>? LinkFor { get; set; }
+}

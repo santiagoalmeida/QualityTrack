@@ -42,6 +42,36 @@ public static class Format
         };
     }
 
+    public static string Category(MetricCategory category) => category switch
+    {
+        MetricCategory.Quality => "Calidad",
+        MetricCategory.Security => "Seguridad",
+        MetricCategory.Maintainability => "Mantenibilidad y deuda técnica",
+        _ => "Otras métricas"
+    };
+
+    public static string Severity(string? severity) => severity switch
+    {
+        "blocker" => "Bloqueante",
+        "critical" => "Crítica",
+        "high" => "Alta",
+        "major" => "Mayor",
+        "medium" => "Media",
+        "minor" => "Menor",
+        "low" => "Baja",
+        "info" => "Informativa",
+        null => "—",
+        _ => severity
+    };
+
+    /// <summary>CSS modifier for a severity chip: the two worst levels stand out.</summary>
+    public static string SeverityClass(string? severity) => severity switch
+    {
+        "blocker" or "critical" or "high" => "chip-bad",
+        "major" or "medium" => "chip-warn",
+        _ => ""
+    };
+
     public static string Number(double value) =>
         value.ToString(value == Math.Floor(value) ? "N0" : "0.##", Culture);
 

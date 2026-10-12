@@ -1,22 +1,22 @@
-@page "/projects/{Key}/goals"
+@page "/solutions/{Key}/goals"
 @using System.Globalization
 @using QualityTrack.Application.Goals
 @inject GoalService Goals
 
-<PageTitle>Metas · @(_goals?.Name ?? "Proyecto") · QualityTrack</PageTitle>
+<PageTitle>Metas · @(_goals?.Name ?? "Solución") · QualityTrack</PageTitle>
 
 @if (_goals is null)
 {
     <div class="empty">
-        <h1>Proyecto no encontrado</h1>
-        <a class="btn btn-primary" href="/">Ir a proyectos</a>
+        <h1>Solución no encontrada</h1>
+        <a class="btn btn-primary" href="/">Ir a soluciones</a>
     </div>
 }
 else
 {
     <div class="page-head">
         <div>
-            <p class="crumb"><a href="/">Proyectos</a> / <a href="@($"/projects/{_goals.Key}")">@_goals.Name</a> /</p>
+            <p class="crumb"><a href="/">Soluciones</a> / <a href="@($"/solutions/{_goals.Key}")">@_goals.Name</a> /</p>
             <h1>Metas</h1>
         </div>
     </div>
@@ -35,18 +35,18 @@ else
         <p class="alert alert-error" role="alert">@error</p>
     }
 
-    @if (_goals.Components.Count == 0)
+    @if (_goals.Projects.Count == 0)
     {
-        <section class="card"><p class="muted">El proyecto aún no tiene corridas con métricas.</p></section>
+        <section class="card"><p class="muted">La solución aún no tiene corridas con métricas.</p></section>
     }
     else
     {
         <form method="post" @formname="goals" @onsubmit="SaveAsync">
             <AntiforgeryToken />
-            @foreach (var component in _goals.Components)
+            @foreach (var project in _goals.Projects)
             {
                 <section class="card">
-                    <h2>@component.Name</h2>
+                    <h2>@project.Name</h2>
                     <div class="table-wrap">
                         <table class="table">
                             <thead>
@@ -58,19 +58,19 @@ else
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var item in component.Items)
+                                @foreach (var item in project.Items)
                                 {
                                     <tr>
                                         <td>
-                                            <label for="@FieldName(component.ComponentId, item.Metric.Key)">@item.Metric.Name</label>
+                                            <label for="@FieldName(project.ProjectId, item.Metric.Key)">@item.Metric.Name</label>
                                             <span class="group">@Hint(item.Metric)</span>
                                         </td>
                                         <td class="num muted">@(item.Baseline is { } baseline ? Format.Value(item.Metric, baseline) : "—")</td>
                                         <td class="num">@Format.Value(item.Metric, item.Current)</td>
                                         <td>
                                             <input class="input-num" type="number" step="any"
-                                                   id="@FieldName(component.ComponentId, item.Metric.Key)"
-                                                   name="@FieldName(component.ComponentId, item.Metric.Key)"
+                                                   id="@FieldName(project.ProjectId, item.Metric.Key)"
+                                                   name="@FieldName(project.ProjectId, item.Metric.Key)"
                                                    value="@(item.Target is { } target ? Format.Invariant(target) : null)" />
                                         </td>
                                     </tr>
@@ -86,7 +86,7 @@ else
 }
 
 @code {
-    private ProjectGoals? _goals;
+    private SolutionGoals? _goals;
     private bool _saved;
     private List<string> _errors = [];
 
@@ -112,12 +112,12 @@ else
             return;
 
         var form = HttpContext.Request.Form;
-        foreach (var component in _goals.Components)
+        foreach (var project in _goals.Projects)
         {
-            foreach (var item in component.Items)
+            foreach (var item in project.Items)
             {
                 // A field that was not submitted is left alone; only one sent empty removes the goal.
-                if (!form.TryGetValue(FieldName(component.ComponentId, item.Metric.Key), out var submitted))
+                if (!form.TryGetValue(FieldName(project.ProjectId, item.Metric.Key), out var submitted))
                     continue;
 
                 var raw = submitted.ToString().Trim();
@@ -126,20 +126,20 @@ else
                     if (raw.Length == 0)
                     {
                         if (item.Target is not null)
-                            await Goals.RemoveAsync(OrganizationId, Key, component.ComponentId, item.Metric.Key);
+                            await Goals.RemoveAsync(OrganizationId, Key, project.ProjectId, item.Metric.Key);
                     }
                     else if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var target))
                     {
-                        _errors.Add($"{component.Name} · {item.Metric.Name}: la meta debe ser un número.");
+                        _errors.Add($"{project.Name} · {item.Metric.Name}: la meta debe ser un número.");
                     }
                     else if (target != item.Target)
                     {
-                        await Goals.SetAsync(OrganizationId, Key, component.ComponentId, item.Metric.Key, target);
+                        await Goals.SetAsync(OrganizationId, Key, project.ProjectId, item.Metric.Key, target);
                     }
                 }
                 catch (ValidationException ex)
                 {
-                    _errors.Add($"{component.Name} · {item.Metric.Name}: {ex.Message}");
+                    _errors.Add($"{project.Name} · {item.Metric.Name}: {ex.Message}");
                 }
             }
         }
@@ -148,7 +148,7 @@ else
         _goals = await Goals.GetAsync(OrganizationId, Key);
     }
 
-    private static string FieldName(Guid componentId, string metricKey) => $"target:{componentId:N}:{metricKey}";
+    private static string FieldName(Guid projectId, string metricKey) => $"target:{projectId:N}:{metricKey}";
 
     private static string Hint(MetricDefinition metric) => metric.Unit switch
     {

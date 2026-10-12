@@ -2,7 +2,7 @@
 """Reporta a QualityTrack una corrida de pytest con cobertura. Solo usa la biblioteca estándar.
 
 Antes:  pytest --junitxml=junit.xml --cov --cov-report=xml
-Uso:    report_pytest.py <proyecto> [componente] [junit.xml] [coverage.xml]
+Uso:    report_pytest.py <solución> [proyecto] [junit.xml] [coverage.xml]
 
 Variables: QUALITYTRACK_URL, QUALITYTRACK_API_KEY.
 """
@@ -50,19 +50,19 @@ def main() -> int:
         print(__doc__)
         return 2
 
-    project = sys.argv[1]
-    component = sys.argv[2] if len(sys.argv) > 2 else "backend"
+    solution = sys.argv[1]
+    project = sys.argv[2] if len(sys.argv) > 2 else "backend"
     junit_path = sys.argv[3] if len(sys.argv) > 3 else "junit.xml"
     coverage_path = sys.argv[4] if len(sys.argv) > 4 else "coverage.xml"
 
     payload = {
-        "project": project,
+        "solution": solution,
         "branch": os.environ.get("BRANCH") or git("rev-parse", "--abbrev-ref", "HEAD"),
         "commit": git("rev-parse", "HEAD"),
         "dirty": bool(git("status", "--porcelain")),
         "source": "ci" if os.environ.get("CI") else "local",
-        "components": [
-            {"key": component, "tests": read_tests(junit_path), "metrics": read_coverage(coverage_path)}
+        "projects": [
+            {"key": project, "tests": read_tests(junit_path), "metrics": read_coverage(coverage_path)}
         ],
     }
 

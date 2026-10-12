@@ -6,11 +6,11 @@
   -H "X-Api-Key: $QUALITYTRACK_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "project": "mi-app",
-    "projectName": "Mi aplicación",
+    "solution": "mi-app",
+    "solutionName": "Mi aplicación",
     "branch": "main",
     "commit": "a1b2c3d",
-    "components": [
+    "projects": [
       {
         "key": "backend",
         "name": "Backend",
@@ -20,7 +20,7 @@
     ]
   }'</code></pre>
     <p class="muted">
-        El proyecto y sus componentes se crean solos con la primera corrida. Las métricas conocidas
+        La solución y sus proyectos se crean solos con la primera corrida. Las métricas conocidas
         (<code>coverage</code>, <code>bugs</code>, <code>vulnerabilities</code>, <code>code_smells</code>,
         <code>duplicated_lines_density</code>, <code>technical_debt_minutes</code>…) reciben nombre, unidad y meta;
         cualquier otra clave numérica también se guarda y se grafica.

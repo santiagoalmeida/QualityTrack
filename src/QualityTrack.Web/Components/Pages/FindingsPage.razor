@@ -1,0 +1,111 @@
+@page "/solutions/{Key}/projects/{ProjectKey}/findings/{MetricKey}"
+@inject FindingsService Findings
+
+<PageTitle>@(_list?.Context.Metric.Name ?? "Incidencias") · @(_list?.Context.ProjectName ?? "Proyecto") · QualityTrack</PageTitle>
+
+@if (_list is null)
+{
+    <div class="empty">
+        <h1>Sin incidencias que mostrar</h1>
+        <p class="muted">La solución o el proyecto no existen, o la corrida no las reportó.</p>
+        <a class="btn btn-primary" href="/">Ir a soluciones</a>
+    </div>
+}
+else
+{
+    var context = _list.Context;
+    <div class="page-head">
+        <div>
+            <p class="crumb">
+                <a href="/">Soluciones</a> / <a href="@($"/solutions/{context.SolutionKey}{_query}")">@context.SolutionName</a> /
+                <a href="@($"/solutions/{context.SolutionKey}/projects/{context.ProjectKey}{_query}")">@context.ProjectName</a> /
+            </p>
+            <h1>@context.Metric.Name</h1>
+        </div>
+    </div>
+
+    <p class="run-line">
+        <span class="chip">@context.Run.Branch</span>
+        <span class="muted">@Format.Date(context.Run.ExecutedAt) · <code>@Format.ShortCommit(context.Run.CommitSha)</code></span>
+    </p>
+
+    @if (_list.Rules.Count == 0)
+    {
+        <section class="card">
+            <p class="muted">
+                Esta corrida no guarda el detalle de esta métrica. El detalle se conserva solo para la última
+                corrida de cada rama que lo reporta.
+            </p>
+        </section>
+    }
+    else
+    {
+        <section class="card">
+            <h2>@_list.Total incidencias en @_list.Rules.Count @(_list.Rules.Count == 1 ? "tipo" : "tipos")</h2>
+            <div class="table-wrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Severidad</th>
+                            <th class="num">Incidencias</th>
+                            <th class="num">Archivos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var rule in _list.Rules)
+                        {
+                            <tr>
+                                <td>
+                                    <a href="@RuleUrl(rule.Key)">@rule.Name</a>
+                                    <span class="group"><code>@rule.Key</code></span>
+                                </td>
+                                <td><span class="chip @Format.SeverityClass(rule.TopSeverity)">@Format.Severity(rule.TopSeverity)</span></td>
+                                <td class="num"><strong>@rule.Count</strong></td>
+                                <td class="num">@rule.Files</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+}
+
+@code {
+    private RuleList? _list;
+    private string _query = "";
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [Parameter]
+    public string Key { get; set; } = "";
+
+    [Parameter]
+    public string ProjectKey { get; set; } = "";
+
+    [Parameter]
+    public string MetricKey { get; set; } = "";
+
+    [SupplyParameterFromQuery]
+    private string? Branch { get; set; }
+
+    [SupplyParameterFromQuery]
+    private Guid? Run { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _list = await Findings.GetRulesAsync(HttpContext.User.OrganizationId(), Key, ProjectKey, MetricKey, Branch, Run);
+        if (_list is null)
+        {
+            HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        _query = $"?branch={Uri.EscapeDataString(_list.Context.Run.Branch)}&run={_list.Context.Run.Id}";
+    }
+
+    private string RuleUrl(string ruleKey) =>
+        $"/solutions/{Key}/projects/{ProjectKey}/findings/{MetricKey}/rule{_query}&key={Uri.EscapeDataString(ruleKey)}";
+}

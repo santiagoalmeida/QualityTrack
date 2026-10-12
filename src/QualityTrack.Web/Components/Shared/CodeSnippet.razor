@@ -1,0 +1,49 @@
+@* Source lines around a finding, with the lines to fix highlighted and, when known, the exact range marked. *@
+@if (Finding.SnippetLines.Count == 0)
+{
+    <p class="muted">El reporte no incluyó el código de esta ubicación.</p>
+}
+else
+{
+    <div class="code" role="region" aria-label="@($"Código de {Finding.FilePath}")">
+        <table>
+            <tbody>
+                @for (var i = 0; i < Finding.SnippetLines.Count; i++)
+                {
+                    var number = Finding.SnippetStartLine!.Value + i;
+                    var text = Finding.SnippetLines[i];
+                    var flagged = IsFlagged(number);
+                    <tr class="@(flagged ? "code-flagged" : null)">
+                        <td class="code-number">@number</td>
+                        <td class="code-text">@if (flagged && Range(number, text) is var (start, end) && end > start)
+                            {@text[..start]<mark>@text[start..end]</mark>@text[end..]}
+                            else
+                            {@text}</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public FindingDetail Finding { get; set; } = default!;
+
+    private bool IsFlagged(int number) =>
+        Finding.Line is { } line && number >= line && number <= (Finding.EndLine ?? line);
+
+    // Columns of the marked range on a flagged line. A range that spans lines covers from its start
+    // column on the first line to its end column on the last; lines in between are marked whole.
+    private (int Start, int End) Range(int number, string text)
+    {
+        var first = Finding.Line!.Value;
+        var last = Finding.EndLine ?? first;
+        if (Finding.StartColumn is null || Finding.EndColumn is null)
+            return (0, 0);
+
+        var start = number == first ? Finding.StartColumn.Value : text.Length - text.TrimStart().Length;
+        var end = number == last ? Finding.EndColumn.Value : text.Length;
+        return (Math.Clamp(start, 0, text.Length), Math.Clamp(end, 0, text.Length));
+    }
+}

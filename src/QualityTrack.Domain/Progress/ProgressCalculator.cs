@@ -18,7 +18,9 @@ public static class ProgressCalculator
         if (span == 0)
             return 0;
 
-        return Math.Clamp((baseline - current) / span, 0, 1);
+        // Compared rather than clamped: a metric still at its baseline divides to -0, which Clamp would keep.
+        var progress = (baseline - current) / span;
+        return progress <= 0 ? 0 : Math.Min(progress, 1);
     }
 
     public static bool IsMet(double target, double current, MetricDirection direction) => direction switch

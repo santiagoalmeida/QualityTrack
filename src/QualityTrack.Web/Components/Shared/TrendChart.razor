@@ -2,7 +2,7 @@
 <figure class="chart">
     <figcaption>
         <span class="chart-title">@Series.Metric.Name</span>
-        <span class="muted">@Series.ComponentName</span>
+        <span class="muted">@Series.ProjectName</span>
     </figcaption>
     <svg viewBox="0 0 @Width @Height" role="img" aria-label="@Summary">
         @foreach (var tick in new[] { _max, (_max + _min) / 2, _min })
@@ -60,7 +60,7 @@
     private double Step => Points.Count > 1 ? (Width - Left - Right) / (double)(Points.Count - 1) : Width - Left - Right;
 
     private string Summary =>
-        $"{Series.Metric.Name} de {Series.ComponentName}: {Format.Value(Series.Metric, Last.Value)} en la última de {Points.Count} corridas.";
+        $"{Series.Metric.Name} de {Series.ProjectName}: {Format.Value(Series.Metric, Last.Value)} en la última de {Points.Count} corridas.";
 
     protected override void OnParametersSet()
     {

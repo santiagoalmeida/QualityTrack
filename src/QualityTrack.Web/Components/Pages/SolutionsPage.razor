@@ -1,14 +1,15 @@
 @page "/"
 @inject DashboardService Dashboard
 @inject TimeProvider Clock
+@inject NavigationManager Navigation
 
-<PageTitle>Proyectos · QualityTrack</PageTitle>
+<PageTitle>Soluciones · QualityTrack</PageTitle>
 
 <div class="page-head">
-    <h1>Proyectos</h1>
+    <h1>Soluciones</h1>
 </div>
 
-@if (_projects.Count == 0)
+@if (_solutions.Count == 0)
 {
     <section class="card">
         <h2>Aún no hay corridas</h2>
@@ -18,16 +19,16 @@
 }
 else
 {
-    <div class="project-grid">
-        @foreach (var project in _projects)
+    <div class="solution-grid">
+        @foreach (var solution in _solutions)
         {
-            <a class="card project-card" href="@($"/projects/{project.Key}")">
-                <div class="project-card-head">
-                    <h2>@project.Name</h2>
-                    <span class="muted">@project.RunCount @(project.RunCount == 1 ? "corrida" : "corridas")</span>
+            <a class="card link-card" href="@($"/solutions/{solution.Key}")">
+                <div class="link-card-head">
+                    <h2>@solution.Name</h2>
+                    <span class="muted">@solution.RunCount @(solution.RunCount == 1 ? "corrida" : "corridas")</span>
                 </div>
 
-                @if (project.LastRun is { } run)
+                @if (solution.LastRun is { } run)
                 {
                     <p class="run-line">
                         <span class="chip">@run.Branch</span>
@@ -35,12 +36,12 @@ else
                     </p>
                 }
 
-                @if (project.Progress is { } progress)
+                @if (solution.Progress is { } progress)
                 {
                     <div class="progress-row">
                         <span class="progress-figure">@Format.Percent(progress)</span>
                         <span class="muted">de avance hacia las metas</span>
-                        @if (project.PreviousProgress is { } previous)
+                        @if (solution.PreviousProgress is { } previous)
                         {
                             <span class="delta @DeltaClass(progress - previous)">@Format.Points(progress - previous)</span>
                         }
@@ -48,11 +49,11 @@ else
                     <ProgressBar Value="progress" Met="progress >= 1" Label="Avance hacia las metas" />
                 }
 
-                @foreach (var component in project.Components)
+                @foreach (var project in solution.Projects)
                 {
                     <dl class="highlights">
-                        <dt>@component.Name</dt>
-                        @foreach (var metric in component.Metrics)
+                        <dt>@project.Name</dt>
+                        @foreach (var metric in project.Metrics)
                         {
                             <dd>
                                 <span class="muted">@metric.Metric.Name</span>
@@ -71,7 +72,7 @@ else
 }
 
 @code {
-    private IReadOnlyList<ProjectSummary> _projects = [];
+    private IReadOnlyList<SolutionSummary> _solutions = [];
     private DateTime _now;
 
     [CascadingParameter]
@@ -80,7 +81,11 @@ else
     protected override async Task OnInitializedAsync()
     {
         _now = Clock.GetUtcNow().UtcDateTime;
-        _projects = await Dashboard.GetOverviewAsync(HttpContext.User.OrganizationId());
+        _solutions = await Dashboard.GetOverviewAsync(HttpContext.User.OrganizationId());
+
+        // With a single solution there is nothing to choose: its dashboard is the start screen.
+        if (_solutions is [{ RunCount: > 0 } only])
+            Navigation.NavigateTo($"/solutions/{only.Key}");
     }
 
     private static string DeltaClass(double delta) => delta switch

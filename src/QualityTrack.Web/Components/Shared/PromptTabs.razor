@@ -1,0 +1,35 @@
+@* The same fix request phrased for each assistant. Tabs are plain radio buttons, so they work without scripts. *@
+<div class="prompt-tabs">
+    @for (var i = 0; i < Assistants.Length; i++)
+    {
+        var (assistant, label) = Assistants[i];
+        <input type="radio" class="prompt-radio" name="@_group" id="@($"{_group}-{i}")" checked="@(i == 0)" />
+        <label for="@($"{_group}-{i}")">@label</label>
+    }
+
+    @foreach (var (assistant, label) in Assistants)
+    {
+        <div class="prompt-panel" data-copy-scope>
+            <div class="prompt-actions">
+                <span class="muted">Prompt para @label</span>
+                <button type="button" class="btn" data-copy>Copiar</button>
+            </div>
+            <pre data-copy-source>@PromptFor(assistant)</pre>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly (AiAssistant Assistant, string Label)[] Assistants =
+    [
+        (AiAssistant.Claude, "Claude"),
+        (AiAssistant.Copilot, "GitHub Copilot"),
+        (AiAssistant.Codex, "Codex")
+    ];
+
+    // Radio groups must not collide when several of these are on one page.
+    private readonly string _group = $"prompt-{Guid.NewGuid():N}";
+
+    [Parameter, EditorRequired]
+    public Func<AiAssistant, string> PromptFor { get; set; } = default!;
+}

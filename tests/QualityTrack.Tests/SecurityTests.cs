@@ -67,4 +67,46 @@ public sealed class SecurityTests : IDisposable
         Assert.Null(await accounts.SignInAsync("nobody@acme.io", "correct horse"));
         await Assert.ThrowsAsync<ValidationException>(() => accounts.SetupAsync(new SetupRequest("Otra", "Eva", "eva@otra.io", "another password")));
     }
+
+    [Fact]
+    public async Task CliLogin_SetsUpAFreshInstallationThenTradesCredentialsForKeys()
+    {
+        await using var db = _database.NewContext();
+        var keys = new ApiKeyService(db, _clock);
+        var login = new CliLoginService(new AccountService(db, new Pbkdf2PasswordHasher(), _clock), keys);
+        var request = new CliLoginRequest { Organization = "Acme", Email = "ana@acme.io", Password = "correct horse", KeyName = "laptop" };
+
+        var first = await login.LoginAsync(request);
+
+        Assert.NotNull(first);
+        Assert.True(first.OrganizationCreated);
+        var organizationId = await keys.AuthenticateAsync(first.ApiKey);
+        Assert.NotNull(organizationId);
+        Assert.Equal("laptop", (await keys.ListAsync(organizationId.Value)).Single().Name);
+
+        var second = await login.LoginAsync(request with { Organization = " acme " });
+
+        Assert.NotNull(second);
+        Assert.False(second.OrganizationCreated);
+        Assert.NotEqual(first.ApiKey, second.ApiKey);
+        Assert.Equal(organizationId, await keys.AuthenticateAsync(second.ApiKey));
+
+        Assert.Null(await login.LoginAsync(request with { Password = "wrong password" }));
+        Assert.Null(await login.LoginAsync(request with { Organization = "Otra" }));
+        Assert.Null(await login.LoginAsync(request with { Email = "eva@acme.io" }));
+        Assert.Equal(2, (await keys.ListAsync(organizationId.Value)).Count);
+    }
+
+    [Fact]
+    public async Task CliLogin_OnAFreshInstallationValidatesLikeTheSetupPage()
+    {
+        await using var db = _database.NewContext();
+        var accounts = new AccountService(db, new Pbkdf2PasswordHasher(), _clock);
+        var login = new CliLoginService(accounts, new ApiKeyService(db, _clock));
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            login.LoginAsync(new CliLoginRequest { Organization = "Acme", Email = "ana@acme.io", Password = "short" }));
+
+        Assert.True(await accounts.IsSetupRequiredAsync());
+    }
 }

@@ -1,221 +1,74 @@
-@page "/projects/{Key}"
+@page "/solutions/{Key}/projects/{ProjectKey}"
 @inject DashboardService Dashboard
-@inject TimeProvider Clock
 
-<PageTitle>@(_dashboard?.Name ?? "Proyecto") · QualityTrack</PageTitle>
+<PageTitle>@(_project?.Name ?? "Proyecto") · @(_dashboard?.Name ?? "Solución") · QualityTrack</PageTitle>
 
-@if (_dashboard is null)
+@if (_dashboard is null || _project is null || _dashboard.Run is not { } run)
 {
     <div class="empty">
         <h1>Proyecto no encontrado</h1>
-        <a class="btn btn-primary" href="/">Ir a proyectos</a>
+        <p class="muted">No existe en la solución o no reportó nada en esta corrida.</p>
+        <a class="btn btn-primary" href="@(_dashboard is null ? "/" : $"/solutions/{_dashboard.Key}")">Volver</a>
     </div>
-}
-else if (_dashboard.Run is not { } run)
-{
-    <div class="page-head"><h1>@_dashboard.Name</h1></div>
-    <section class="card">
-        <h2>Aún no hay corridas</h2>
-        <IngestGuide />
-    </section>
 }
 else
 {
     <div class="page-head">
         <div>
-            <p class="crumb"><a href="/">Proyectos</a> /</p>
-            <h1>@_dashboard.Name</h1>
+            <p class="crumb"><a href="/">Soluciones</a> / <a href="@SolutionUrl">@_dashboard.Name</a> /</p>
+            <h1>@_project.Name</h1>
         </div>
-        <a class="btn" href="@($"/projects/{_dashboard.Key}/goals")">Metas</a>
+        <a class="btn" href="@($"/solutions/{_dashboard.Key}/goals")">Metas</a>
     </div>
 
-    <nav class="tabs" aria-label="Ramas">
-        @foreach (var branch in _dashboard.Branches)
+    <p class="run-line">
+        <span class="chip">@run.Branch</span>
+        <span class="muted">@Format.Date(run.ExecutedAt) · <code>@Format.ShortCommit(run.CommitSha)</code></span>
+        @if (_dashboard.PreviousRun is { } previous)
         {
-            <a class="tab @(branch.Name == _dashboard.Branch ? "tab-active" : null)"
-               aria-current="@(branch.Name == _dashboard.Branch ? "page" : null)"
-               href="@($"/projects/{_dashboard.Key}?branch={Uri.EscapeDataString(branch.Name)}")">
-                @branch.Name <span class="tab-count">@branch.RunCount</span>
-            </a>
+            <span class="muted">· comparada con <code>@Format.ShortCommit(previous.CommitSha)</code></span>
         }
-    </nav>
+    </p>
 
-    <section class="tiles">
-        <div class="tile">
-            <span class="tile-label">Avance hacia las metas</span>
-            @if (_dashboard.Progress is { } progress)
-            {
-                <span class="tile-figure">@Format.Percent(progress)</span>
-                <ProgressBar Value="progress" Met="progress >= 1" Label="Avance hacia las metas" />
-            }
-            else
-            {
-                <span class="tile-figure">—</span>
-                <span class="muted">Define <a href="@($"/projects/{_dashboard.Key}/goals")">metas</a> para medirlo.</span>
-            }
-        </div>
-
-        <div class="tile">
-            <span class="tile-label">Desde la corrida anterior</span>
-            @if (_dashboard is { Progress: { } now, PreviousProgress: { } before })
-            {
-                <span class="tile-figure @FigureClass(now - before)">@Format.Points(now - before)</span>
-                <span class="muted">de @Format.Percent(before) a @Format.Percent(now)</span>
-            }
-            else
-            {
-                <span class="tile-figure">—</span>
-                <span class="muted">@(_dashboard.PreviousRun is null ? "Es la primera corrida de la rama." : "Sin metas para comparar.")</span>
-            }
-        </div>
-
-        <div class="tile">
-            <span class="tile-label">Métricas</span>
-            @if (_dashboard.PreviousRun is null)
-            {
-                <span class="tile-figure">—</span>
-                <span class="muted">Sin corrida anterior.</span>
-            }
-            else
-            {
-                <span class="tile-figure">
-                    <span class="delta-good">▲ @_improved</span>
-                    <span class="delta-bad">▼ @_worsened</span>
-                </span>
-                <span class="muted">@_improved mejoraron, @_worsened empeoraron</span>
-            }
-        </div>
-
-        <div class="tile">
-            <span class="tile-label">Corrida</span>
-            <span class="tile-text">@Format.Date(run.ExecutedAt)</span>
-            <span class="muted">
-                <code>@Format.ShortCommit(run.CommitSha)</code>
-                @if (run.IsDirty)
-                {
-                    <span class="chip chip-warn" title="El árbol de trabajo tenía cambios sin commitear">con cambios locales</span>
-                }
-                @if (run.Source is not null)
-                {
-                    <span> · @run.Source</span>
-                }
-            </span>
-            @if (_dashboard.PreviousRun is { } previousRun)
-            {
-                <span class="muted">Comparada con <code>@Format.ShortCommit(previousRun.CommitSha)</code>, @Format.Ago(previousRun.ExecutedAt, _now)</span>
-            }
-        </div>
-    </section>
-
-    @foreach (var component in _dashboard.Components)
+    @foreach (var category in MetricCatalog.Categories)
     {
-        <section class="card">
-            <h2>@component.Name</h2>
-            <div class="table-wrap">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Métrica</th>
-                            <th class="num">Anterior</th>
-                            <th class="num">Actual</th>
-                            <th>Cambio</th>
-                            <th>Meta</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var metric in component.Metrics)
-                        {
-                            <tr>
-                                <td>
-                                    @metric.Metric.Name
-                                    @if (metric.Metric.Group != metric.Metric.Name)
-                                    {
-                                        <span class="group">@metric.Metric.Group</span>
-                                    }
-                                </td>
-                                <td class="num muted">@(metric.Previous is { } previous ? Format.Value(metric.Metric, previous) : "—")</td>
-                                <td class="num"><strong>@Format.Value(metric.Metric, metric.Current)</strong></td>
-                                <td><DeltaBadge Comparison="metric" /></td>
-                                <td class="goal">
-                                    @if (metric.Goal is { } goal)
-                                    {
-                                        <ProgressBar Value="goal.Progress" Met="goal.Met" Label="@($"Avance de {metric.Metric.Name}")" />
-                                        <span class="muted">
-                                            @(goal.Met ? "✓ cumplida" : Format.Percent(goal.Progress)) · meta @Format.Value(metric.Metric, goal.Target)
-                                        </span>
-                                    }
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    }
-
-    @if (_dashboard.Trends.Count > 0)
-    {
-        <section class="card">
-            <h2>Tendencia en <span class="chip">@_dashboard.Branch</span></h2>
-            <div class="chart-grid-layout">
-                @foreach (var series in _dashboard.Trends)
-                {
-                    <TrendChart Series="series" />
-                }
-            </div>
-        </section>
-    }
-
-    <section class="card">
-        <h2>Historial de corridas</h2>
-        <div class="table-wrap">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Commit</th>
-                        <th>Origen</th>
-                        <th class="num">Avance</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in _dashboard.History)
+        var metrics = _project.Metrics.Where(m => m.Metric.Category == category).ToList();
+        var trends = _trends.Where(t => t.Metric.Category == category).ToList();
+        var goals = metrics.Where(m => m.Goal is not null).Select(m => m.Goal!.Progress).ToList();
+        @if (metrics.Count > 0)
+        {
+            <section class="card">
+                <div class="section-head">
+                    <h2>@Format.Category(category)</h2>
+                    @if (goals.Count > 0)
                     {
-                        <tr class="@(item.Run.Id == run.Id ? "row-selected" : null)">
-                            <td>@Format.Date(item.Run.ExecutedAt)</td>
-                            <td>
-                                <code>@Format.ShortCommit(item.Run.CommitSha)</code>
-                                @if (item.Run.IsDirty)
-                                {
-                                    <span class="chip chip-warn">con cambios locales</span>
-                                }
-                            </td>
-                            <td class="muted">@(item.Run.Source ?? "—")</td>
-                            <td class="num">@(item.Progress is { } p ? Format.Percent(p) : "—")</td>
-                            <td class="num">
-                                @if (item.Run.Id == run.Id)
-                                {
-                                    <span class="muted">en pantalla</span>
-                                }
-                                else
-                                {
-                                    <a href="@($"/projects/{_dashboard.Key}?branch={Uri.EscapeDataString(item.Run.Branch)}&run={item.Run.Id}")">Ver</a>
-                                }
-                            </td>
-                        </tr>
+                        <div class="section-progress">
+                            <span class="muted">@Format.Percent(goals.Average()) de avance hacia sus metas</span>
+                            <ProgressBar Value="goals.Average()" Met="goals.Average() >= 1" Label="@($"Avance en {Format.Category(category)}")" />
+                        </div>
                     }
-                </tbody>
-            </table>
-        </div>
-    </section>
+                </div>
+
+                <MetricsTable Metrics="metrics" LinkFor="FindingsUrl" />
+
+                @if (trends.Count > 0)
+                {
+                    <div class="chart-grid-layout section-charts">
+                        @foreach (var series in trends)
+                        {
+                            <TrendChart Series="series" />
+                        }
+                    </div>
+                }
+            </section>
+        }
+    }
 }
 
 @code {
-    private ProjectDashboard? _dashboard;
-    private DateTime _now;
-    private int _improved;
-    private int _worsened;
+    private SolutionDashboard? _dashboard;
+    private ProjectComparison? _project;
+    private IReadOnlyList<TrendSeries> _trends = [];
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
@@ -223,31 +76,34 @@ else
     [Parameter]
     public string Key { get; set; } = "";
 
+    [Parameter]
+    public string ProjectKey { get; set; } = "";
+
     [SupplyParameterFromQuery]
     private string? Branch { get; set; }
 
     [SupplyParameterFromQuery]
     private Guid? Run { get; set; }
 
+    private string SolutionUrl =>
+        $"/solutions/{_dashboard!.Key}?branch={Uri.EscapeDataString(_dashboard.Branch!)}&run={_dashboard.Run!.Id}";
+
+    // Only the latest run of a branch keeps its findings, so only its counts lead somewhere.
+    private string? FindingsUrl(MetricComparison metric) =>
+        metric.HasFindings
+            ? $"/solutions/{_dashboard!.Key}/projects/{ProjectKey}/findings/{metric.Metric.Key}?branch={Uri.EscapeDataString(_dashboard.Branch!)}&run={_dashboard.Run!.Id}"
+            : null;
+
     protected override async Task OnParametersSetAsync()
     {
-        _now = Clock.GetUtcNow().UtcDateTime;
-        _dashboard = await Dashboard.GetProjectAsync(HttpContext.User.OrganizationId(), Key, Branch, Run);
-        if (_dashboard is null)
+        _dashboard = await Dashboard.GetSolutionAsync(HttpContext.User.OrganizationId(), Key, Branch, Run);
+        _project = _dashboard?.Projects.FirstOrDefault(p => p.Key == ProjectKey);
+        if (_project is null)
         {
             HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
-        var metrics = _dashboard.Components.SelectMany(c => c.Metrics).ToList();
-        _improved = metrics.Count(m => m.Trend == Trend.Improved);
-        _worsened = metrics.Count(m => m.Trend == Trend.Worsened);
+        _trends = _dashboard!.Trends.Where(t => t.ProjectKey == ProjectKey).ToList();
     }
-
-    private static string FigureClass(double delta) => delta switch
-    {
-        > 0 => "delta-good",
-        < 0 => "delta-bad",
-        _ => ""
-    };
 }

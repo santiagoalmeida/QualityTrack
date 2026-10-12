@@ -23,6 +23,10 @@ public class ProgressCalculatorTests
         Assert.Equal(expected, ProgressCalculator.GoalProgress(baseline, target, current, MetricDirection.LowerIsBetter), 6);
 
     [Fact]
+    public void MetricStillAtItsBaseline_IsPlainZeroNotNegativeZero() =>
+        Assert.False(double.IsNegative(ProgressCalculator.GoalProgress(60, 80, 60, MetricDirection.HigherIsBetter)));
+
+    [Fact]
     public void GoalAlreadyMetAtBaseline_IsComplete() =>
         Assert.Equal(1, ProgressCalculator.GoalProgress(0, 0, 0, MetricDirection.LowerIsBetter));
 
@@ -52,5 +56,20 @@ public class ProgressCalculatorTests
     {
         var metric = MetricCatalog.Get("bundle_size_kb");
         Assert.Equal(("bundle_size_kb", MetricUnit.Count, MetricDirection.Neutral), (metric.Name, metric.Unit, metric.Direction));
+        Assert.Equal(MetricCategory.Other, metric.Category);
+    }
+
+    [Fact]
+    public void EveryCatalogMetric_BelongsToQualitySecurityOrMaintainability()
+    {
+        Assert.DoesNotContain(MetricCatalog.All, m => m.Category == MetricCategory.Other);
+        Assert.Equal(MetricCatalog.All.Count, MetricCatalog.All.Select(m => m.Key).Distinct().Count());
+        // Kept together by category, in report order, so tables read top to bottom without regrouping.
+        Assert.Equal(
+            [MetricCategory.Quality, MetricCategory.Security, MetricCategory.Maintainability],
+            MetricCatalog.All.Select(m => m.Category).Distinct());
+        Assert.Equal(MetricCategory.Security, MetricCatalog.Get("vulnerabilities").Category);
+        Assert.Equal(MetricCategory.Maintainability, MetricCatalog.Get("technical_debt_minutes").Category);
+        Assert.Equal(MetricCategory.Quality, MetricCatalog.Get("coverage").Category);
     }
 }

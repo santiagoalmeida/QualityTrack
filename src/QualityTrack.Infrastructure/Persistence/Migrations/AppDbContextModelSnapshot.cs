@@ -59,30 +59,66 @@ namespace QualityTrack.Infrastructure.Persistence.Migrations
                     b.ToTable("ApiKeys");
                 });
 
-            modelBuilder.Entity("QualityTrack.Domain.Entities.Component", b =>
+            modelBuilder.Entity("QualityTrack.Domain.Entities.Finding", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Key")
+                    b.Property<int?>("EndColumn")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("EndLine")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FilePath")
                         .IsRequired()
-                        .HasMaxLength(64)
+                        .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Name")
+                    b.Property<int?>("Line")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Message")
                         .IsRequired()
-                        .HasMaxLength(120)
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MetricKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("RuleKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Severity")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Snippet")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("SnippetStartLine")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("StartColumn")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("ProjectId", "Key")
-                        .IsUnique();
+                    b.HasIndex("ProjectId");
 
-                    b.ToTable("Components");
+                    b.HasIndex("RunId", "ProjectId", "MetricKey", "RuleKey");
+
+                    b.ToTable("Findings");
                 });
 
             modelBuilder.Entity("QualityTrack.Domain.Entities.Goal", b =>
@@ -92,9 +128,6 @@ namespace QualityTrack.Infrastructure.Persistence.Migrations
 
                     b.Property<double>("Baseline")
                         .HasColumnType("REAL");
-
-                    b.Property<Guid>("ComponentId")
-                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
@@ -107,14 +140,17 @@ namespace QualityTrack.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("SolutionId")
+                        .HasColumnType("TEXT");
+
                     b.Property<double>("Target")
                         .HasColumnType("REAL");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProjectId");
+                    b.HasIndex("SolutionId");
 
-                    b.HasIndex("ComponentId", "MetricKey")
+                    b.HasIndex("ProjectId", "MetricKey")
                         .IsUnique();
 
                     b.ToTable("Goals");
@@ -125,12 +161,12 @@ namespace QualityTrack.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("ComponentId")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("MetricKey")
                         .IsRequired()
                         .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProjectId")
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("RunId")
@@ -141,9 +177,9 @@ namespace QualityTrack.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ComponentId", "MetricKey");
+                    b.HasIndex("ProjectId", "MetricKey");
 
-                    b.HasIndex("RunId", "ComponentId", "MetricKey")
+                    b.HasIndex("RunId", "ProjectId", "MetricKey")
                         .IsUnique();
 
                     b.ToTable("Measurements");
@@ -172,9 +208,6 @@ namespace QualityTrack.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -185,15 +218,47 @@ namespace QualityTrack.Infrastructure.Persistence.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("OrganizationId")
+                    b.Property<Guid>("SolutionId")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrganizationId", "Key")
+                    b.HasIndex("SolutionId", "Key")
                         .IsUnique();
 
                     b.ToTable("Projects");
+                });
+
+            modelBuilder.Entity("QualityTrack.Domain.Entities.Rule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HowToFix")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SolutionId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SolutionId", "Key")
+                        .IsUnique();
+
+                    b.ToTable("Rules");
                 });
 
             modelBuilder.Entity("QualityTrack.Domain.Entities.Run", b =>
@@ -216,7 +281,7 @@ namespace QualityTrack.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsDirty")
                         .HasColumnType("INTEGER");
 
-                    b.Property<Guid>("ProjectId")
+                    b.Property<Guid>("SolutionId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Source")
@@ -225,9 +290,38 @@ namespace QualityTrack.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProjectId", "Branch", "ExecutedAt");
+                    b.HasIndex("SolutionId", "Branch", "ExecutedAt");
 
                     b.ToTable("Runs");
+                });
+
+            modelBuilder.Entity("QualityTrack.Domain.Entities.Solution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "Key")
+                        .IsUnique();
+
+                    b.ToTable("Solutions");
                 });
 
             modelBuilder.Entity("QualityTrack.Domain.Entities.User", b =>
@@ -279,41 +373,49 @@ namespace QualityTrack.Infrastructure.Persistence.Migrations
                     b.Navigation("Organization");
                 });
 
-            modelBuilder.Entity("QualityTrack.Domain.Entities.Component", b =>
+            modelBuilder.Entity("QualityTrack.Domain.Entities.Finding", b =>
                 {
                     b.HasOne("QualityTrack.Domain.Entities.Project", "Project")
-                        .WithMany("Components")
+                        .WithMany()
                         .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("QualityTrack.Domain.Entities.Run", "Run")
+                        .WithMany()
+                        .HasForeignKey("RunId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Project");
+
+                    b.Navigation("Run");
                 });
 
             modelBuilder.Entity("QualityTrack.Domain.Entities.Goal", b =>
                 {
-                    b.HasOne("QualityTrack.Domain.Entities.Component", "Component")
+                    b.HasOne("QualityTrack.Domain.Entities.Project", "Project")
                         .WithMany()
-                        .HasForeignKey("ComponentId")
+                        .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("QualityTrack.Domain.Entities.Project", "Project")
+                    b.HasOne("QualityTrack.Domain.Entities.Solution", "Solution")
                         .WithMany("Goals")
-                        .HasForeignKey("ProjectId")
+                        .HasForeignKey("SolutionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Component");
-
                     b.Navigation("Project");
+
+                    b.Navigation("Solution");
                 });
 
             modelBuilder.Entity("QualityTrack.Domain.Entities.Measurement", b =>
                 {
-                    b.HasOne("QualityTrack.Domain.Entities.Component", "Component")
+                    b.HasOne("QualityTrack.Domain.Entities.Project", "Project")
                         .WithMany()
-                        .HasForeignKey("ComponentId")
+                        .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -323,31 +425,53 @@ namespace QualityTrack.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Component");
+                    b.Navigation("Project");
 
                     b.Navigation("Run");
                 });
 
             modelBuilder.Entity("QualityTrack.Domain.Entities.Project", b =>
                 {
-                    b.HasOne("QualityTrack.Domain.Entities.Organization", "Organization")
+                    b.HasOne("QualityTrack.Domain.Entities.Solution", "Solution")
                         .WithMany("Projects")
+                        .HasForeignKey("SolutionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Solution");
+                });
+
+            modelBuilder.Entity("QualityTrack.Domain.Entities.Rule", b =>
+                {
+                    b.HasOne("QualityTrack.Domain.Entities.Solution", "Solution")
+                        .WithMany()
+                        .HasForeignKey("SolutionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Solution");
+                });
+
+            modelBuilder.Entity("QualityTrack.Domain.Entities.Run", b =>
+                {
+                    b.HasOne("QualityTrack.Domain.Entities.Solution", "Solution")
+                        .WithMany("Runs")
+                        .HasForeignKey("SolutionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Solution");
+                });
+
+            modelBuilder.Entity("QualityTrack.Domain.Entities.Solution", b =>
+                {
+                    b.HasOne("QualityTrack.Domain.Entities.Organization", "Organization")
+                        .WithMany("Solutions")
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Organization");
-                });
-
-            modelBuilder.Entity("QualityTrack.Domain.Entities.Run", b =>
-                {
-                    b.HasOne("QualityTrack.Domain.Entities.Project", "Project")
-                        .WithMany("Runs")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("QualityTrack.Domain.Entities.User", b =>
@@ -365,23 +489,23 @@ namespace QualityTrack.Infrastructure.Persistence.Migrations
                 {
                     b.Navigation("ApiKeys");
 
-                    b.Navigation("Projects");
+                    b.Navigation("Solutions");
 
                     b.Navigation("Users");
-                });
-
-            modelBuilder.Entity("QualityTrack.Domain.Entities.Project", b =>
-                {
-                    b.Navigation("Components");
-
-                    b.Navigation("Goals");
-
-                    b.Navigation("Runs");
                 });
 
             modelBuilder.Entity("QualityTrack.Domain.Entities.Run", b =>
                 {
                     b.Navigation("Measurements");
+                });
+
+            modelBuilder.Entity("QualityTrack.Domain.Entities.Solution", b =>
+                {
+                    b.Navigation("Goals");
+
+                    b.Navigation("Projects");
+
+                    b.Navigation("Runs");
                 });
 #pragma warning restore 612, 618
         }

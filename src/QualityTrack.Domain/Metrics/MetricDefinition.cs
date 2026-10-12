@@ -20,4 +20,15 @@ public enum MetricUnit
     Flag = 5
 }
 
-public sealed record MetricDefinition(string Key, string Name, MetricUnit Unit, MetricDirection Direction, string Group);
+/// <summary>The three angles every report is organized by. Metrics outside the catalog fall in <see cref="Other"/>.</summary>
+public enum MetricCategory
+{
+    Other = 0,
+    /// <summary>Does it work: quality gate, reliability, tests and coverage.</summary>
+    Quality = 1,
+    Security = 2,
+    /// <summary>Maintainability and technical debt.</summary>
+    Maintainability = 3
+}
+
+public sealed record MetricDefinition(string Key, string Name, MetricUnit Unit, MetricDirection Direction, MetricCategory Category);

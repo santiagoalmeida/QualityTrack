@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using QualityTrack.Application;
@@ -9,6 +11,9 @@ using QualityTrack.Web.Endpoints;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents();
+// The API speaks in names ("improved", "percent"), not enum numbers.
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -29,7 +34,8 @@ builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(http =>
-        HttpMethods.IsPost(http.Request.Method) && http.Request.Path.StartsWithSegments("/login")
+        HttpMethods.IsPost(http.Request.Method)
+        && (http.Request.Path.StartsWithSegments("/login") || http.Request.Path.StartsWithSegments(ApiEndpoints.CliLoginPath))
             ? RateLimitPartition.GetFixedWindowLimiter(
                 http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) })

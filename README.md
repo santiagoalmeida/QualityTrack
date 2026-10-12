@@ -4,13 +4,13 @@ Historial de calidad para cualquier aplicación. Cada vez que corren los tests y
 el pipeline (o un script local) reporta la corrida; QualityTrack la guarda con su rama y commit, y muestra
 en un dashboard qué cambió desde la corrida anterior y cuánto se avanzó hacia las metas.
 
-- **Datos por organización:** proyectos, usuarios y claves API pertenecen a una organización y toda consulta se limita a ella.
+- **Datos por organización:** soluciones, usuarios y claves API pertenecen a una organización y toda consulta se limita a ella.
 - **Agnóstico de la herramienta:** recibe un JSON con métricas numéricas. Sirve con SonarQube, con un reporte
   de cobertura o con cualquier número que el equipo quiera seguir.
 - **Avance medible:** cada métrica puede tener una meta; el avance es el tramo recorrido entre el valor
-  inicial y la meta, y el del proyecto es el promedio de sus metas.
+  inicial y la meta, y el de la solución es el promedio de sus metas.
 
-![Dashboard de un proyecto: avance hacia las metas, cambio desde la corrida anterior y tendencias](docs/dashboard.png)
+![Dashboard de una solución: avance hacia las metas, cambio desde la corrida anterior y tendencias](docs/dashboard.png)
 
 ## Cómo funciona
 
@@ -25,15 +25,32 @@ en un dashboard qué cambió desde la corrida anterior y cuánto se avanzó haci
 
 1. **Tu pipeline mide.** Corre los tests y el análisis como siempre. QualityTrack no ejecuta nada en tu
    código: solo recibe números.
-2. **Un script reporta la corrida.** Al terminar, envía un JSON con el proyecto, la rama, el commit y las
-   métricas de cada componente (backend, frontend, un servicio…). Hay [scripts de ejemplo](#scripts-de-ejemplo)
+2. **Un script reporta la corrida.** Al terminar, envía un JSON con la solución, la rama, el commit y las
+   métricas de cada proyecto (backend, frontend, un servicio…). Hay [scripts de ejemplo](#scripts-de-ejemplo)
    para SonarQube, .NET, Jest y pytest.
-3. **QualityTrack la guarda y la compara.** El proyecto y sus componentes se crean solos con la primera
+3. **QualityTrack la guarda y la compara.** La solución y sus proyectos se crean solos con la primera
    corrida. Cada corrida se compara con la anterior **de la misma rama**, así el trabajo de una rama no se
    mezcla con el de otra.
 4. **El dashboard muestra el avance.** Por métrica: valor anterior, valor actual y si el cambio es bueno o
-   malo (subir la cobertura es bueno; subir los bugs, no). Por proyecto: el avance hacia las metas y cuánto
+   malo (subir la cobertura es bueno; subir los bugs, no). Por solución: el avance hacia las metas y cuánto
    se movió desde la última corrida.
+
+### Pantallas
+
+Todas las pantallas leen la corrida en tres categorías: **calidad**, **seguridad** y **mantenibilidad y
+deuda técnica**.
+
+- **Solución** (la pantalla de inicio cuando solo hay una): avance hacia las metas, cambio desde la corrida
+  anterior, una tarjeta por proyecto con las cifras principales de cada categoría, las tendencias y el
+  historial de corridas.
+- **Proyecto** (desde su tarjeta): una sección por categoría con todas sus métricas (valor anterior,
+  actual, cambio y meta), el avance de la categoría y sus tendencias.
+- **Tipos de incidencia** (al hacer clic en una métrica, por ejemplo *Code smells*): las reglas que la
+  componen, con cuántas incidencias y archivos afecta cada una.
+- **Incidencias de un tipo** (al hacer clic en una regla): cada ubicación con su archivo y línea, el bloque
+  de código con la parte a corregir marcada, la sugerencia de la regla y un prompt listo para copiar en
+  Claude, GitHub Copilot o Codex, tanto para una incidencia como para todas las de la regla.
+- **Metas** y **Claves API**.
 
 ### Cómo se calcula el avance
 
@@ -51,7 +68,7 @@ avance = (valor inicial − valor actual) / (valor inicial − meta)      limita
 | Vulnerabilidades | 3 | 0 | 3 | 0 % |
 | Tests fallidos | 0 | 0 | 0 | 100 % (ya cumplida) |
 
-El **avance del proyecto** es el promedio de sus metas (56 % en el ejemplo). Si en la corrida anterior era
+El **avance de la solución** es el promedio de sus metas (56 % en el ejemplo). Si en la corrida anterior era
 48 %, el dashboard muestra **+8 pt desde la corrida anterior**. Una métrica que empeora más allá de su valor
 inicial cuenta como 0 %, no como negativa.
 
@@ -59,12 +76,12 @@ inicial cuenta como 0 %, no como negativa.
 
 | Concepto | Qué es |
 |---|---|
-| Organización | El dueño de los datos: sus proyectos, usuarios y claves API. |
-| Proyecto | Una aplicación seguida, identificada por una clave estable (`tienda-online`). |
-| Componente | Una parte medida por separado: `api`, `web`, `backend`… |
+| Organización | El dueño de los datos: sus soluciones, usuarios y claves API. |
+| Solución | Una aplicación seguida, identificada por una clave estable (`tienda-online`). |
+| Proyecto | Una parte de la solución medida por separado: `api`, `web`, `backend`… |
 | Corrida | Una ejecución de tests y análisis: rama, commit, fecha y si había cambios sin commitear. |
-| Medición | El valor de una métrica de un componente en una corrida. |
-| Meta | El objetivo de una métrica de un componente, con su valor inicial. |
+| Medición | El valor de una métrica de un proyecto en una corrida. |
+| Meta | El objetivo de una métrica de un proyecto, con su valor inicial. |
 
 ## Licencia en breve
 
@@ -110,13 +127,13 @@ curl -X POST http://localhost:5210/api/v1/runs \
   -H "X-Api-Key: $QUALITYTRACK_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "project": "mi-app",
-    "projectName": "Mi aplicación",
+    "solution": "mi-app",
+    "solutionName": "Mi aplicación",
     "branch": "main",
     "commit": "a1b2c3d",
     "dirty": false,
     "source": "ci",
-    "components": [
+    "projects": [
       {
         "key": "backend",
         "name": "Backend",
@@ -129,45 +146,136 @@ curl -X POST http://localhost:5210/api/v1/runs \
 
 | Campo | Notas |
 |---|---|
-| `project` | Clave estable del proyecto (minúsculas, dígitos, `.`, `_`, `-`). Se crea con la primera corrida. |
+| `solution` | Clave estable de la solución (minúsculas, dígitos, `.`, `_`, `-`). Se crea con la primera corrida. |
 | `branch` | Las comparaciones se hacen siempre contra la corrida anterior de la misma rama. |
 | `commit`, `dirty`, `source`, `executedAt` | Opcionales. `dirty` marca corridas con cambios sin commitear. |
-| `components[]` | Partes medidas por separado (backend, frontend…). Cada una lleva `tests`, `metrics` o ambos. |
+| `projects[]` | Proyectos de la solución, medidos por separado (backend, frontend…). Cada uno lleva `tests`, `metrics` o ambos. |
 | `metrics` | Clave → número. Las del catálogo reciben nombre, unidad y meta; cualquier otra se guarda igual. |
 
 La respuesta (`201`) trae el avance tras la corrida y el de la anterior:
 
 ```json
-{ "runId": "…", "project": "mi-app", "branch": "main", "projectCreated": false, "progress": 0.47, "previousProgress": 0.41 }
+{
+  "runId": "…", "solution": "mi-app", "branch": "main", "solutionCreated": false,
+  "progress": 0.47, "previousProgress": 0.41,
+  "projects": [
+    {
+      "key": "backend", "name": "Backend",
+      "metrics": [
+        {
+          "key": "coverage", "name": "Cobertura", "category": "quality", "unit": "percent",
+          "current": 61.5, "previous": 60.2, "delta": 1.3, "trend": "improved",
+          "goal": { "baseline": 55, "target": 80, "progress": 0.26, "met": false }
+        }
+      ]
+    }
+  ]
+}
 ```
+
+`projects` trae cada métrica con su categoría (`quality`, `security`, `maintainability` u `other`) y
+comparada con la corrida anterior de la rama (`trend`: `improved`, `worsened` o `unchanged`), para que el script que reporta pueda mostrar el resultado sin abrir el dashboard.
+
+### Detalle de incidencias (opcional)
+
+Para navegar desde un conteo hasta la línea a corregir, la corrida puede llevar el detalle: `findings` en
+cada proyecto y `rules` en la raíz.
+
+```json
+{
+  "solution": "mi-app", "branch": "main",
+  "rules": [
+    { "key": "csharpsquid:S1656", "name": "Variables should not be self-assigned",
+      "description": "Texto plano: por qué es un problema.", "howToFix": "Texto plano: cómo corregirlo." }
+  ],
+  "projects": [
+    {
+      "key": "backend",
+      "metrics": { "code_smells": 12 },
+      "findings": [
+        {
+          "metric": "code_smells", "rule": "csharpsquid:S1656", "severity": "major",
+          "message": "Remove or correct this useless self-assignment.",
+          "file": "src/Tienda/Pedidos.cs", "line": 42, "endLine": 42, "startColumn": 8, "endColumn": 35,
+          "snippet": { "startLine": 39, "lines": ["…", "…", "…", "        pedido.Total = pedido.Total;", "…"] }
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `metric` enlaza la incidencia con la métrica que la cuenta; `file` es relativo a la raíz del repositorio.
+- `startColumn` y `endColumn` (desde 0) marcan el tramo exacto dentro de la línea; son opcionales.
+- Las descripciones son texto plano: el HTML no se interpreta.
+- **Solo se conserva el detalle de la última corrida de cada rama**, porque incluye código fuente. Una
+  corrida que no envía `findings` deja intacto el detalle guardado.
+- El detalle contiene fragmentos de tu código: quedan almacenados en la instancia de QualityTrack.
 
 ### Métricas del catálogo
 
-`quality_gate` (1 = pasa), `coverage`, `line_coverage`, `branch_coverage`, `bugs`, `vulnerabilities`,
-`security_hotspots`, `code_smells`, `technical_debt_minutes`, `duplicated_lines_density`, `open_issues`,
-`reliability_rating`, `security_rating`, `maintainability_rating` (1 = A … 5 = E), `lines_of_code`, y las de
-tests (`tests_total`, `tests_passed`, `tests_failed`, `tests_skipped`, `tests_duration_seconds`), que salen
-del objeto `tests`.
+Todo informe se lee en tres categorías, y cada métrica del catálogo pertenece a una:
 
-La primera vez que un componente reporta `coverage`, `bugs`, `vulnerabilities`, `tests_failed` o
+| Categoría | Métricas |
+|---|---|
+| **Calidad** | `quality_gate` (1 = pasa), `reliability_rating`, `bugs`, `coverage`, `line_coverage`, `branch_coverage` y las de tests (`tests_total`, `tests_passed`, `tests_failed`, `tests_skipped`, `tests_duration_seconds`), que salen del objeto `tests` |
+| **Seguridad** | `security_rating`, `vulnerabilities`, `security_review_rating`, `security_hotspots`, `security_hotspots_reviewed` |
+| **Mantenibilidad y deuda técnica** | `maintainability_rating`, `code_smells`, `technical_debt_minutes`, `technical_debt_ratio`, `duplicated_lines_density`, `duplicated_lines`, `duplicated_blocks`, `open_issues`, `blocker_issues`, `critical_issues`, `complexity`, `cognitive_complexity`, `lines_of_code` |
+
+Las notas (`*_rating`) van de 1 = A a 5 = E. Una clave fuera del catálogo se guarda igual y aparece en
+"Otras métricas", solo en el detalle del proyecto.
+
+La primera vez que un proyecto reporta `coverage`, `bugs`, `vulnerabilities`, `tests_failed` o
 `duplicated_lines_density` se le asigna una meta por defecto (80 %, 0, 0, 0 y 3 %). Se cambian o se quitan
-en la página **Metas** del proyecto.
+en la página **Metas** de la solución.
 
 ## Scripts de ejemplo
 
-Están en [`examples/`](examples). Todos leen `QUALITYTRACK_URL` y `QUALITYTRACK_API_KEY`, toman la rama y el
-commit de git, y al terminar imprimen el avance. Se copian al repositorio de la aplicación y se adaptan.
+Están en [`examples/`](examples). Los que reportan leen `QUALITYTRACK_URL` y `QUALITYTRACK_API_KEY`, toman la
+rama y el commit de git, y al terminar imprimen el avance. Se copian al repositorio de la aplicación y se adaptan.
 
 | Script | Para | Requiere |
 |---|---|---|
-| [`report-sonarqube.sh`](examples/report-sonarqube.sh) | Métricas de uno o más proyectos de SonarQube | `curl`, `jq` |
+| [`qualitytrack-auth.sh`](examples/qualitytrack-auth.sh) | Pedir las credenciales una vez y guardar la clave en el llavero | `curl`, `jq`, `secret-tool` (opcional) |
+| [`report-sonarqube.sh`](examples/report-sonarqube.sh) | Métricas de uno o más proyectos de SonarQube y, con Python, el detalle de sus incidencias | `curl`, `jq`, `python3` (opcional) |
+| [`sonar_findings.py`](examples/sonar_findings.py) | Exportar de SonarQube cada incidencia con su código y la explicación de su regla | Python 3 (biblioteca estándar) |
 | [`report-dotnet.sh`](examples/report-dotnet.sh) | Tests y cobertura de .NET, sin Sonar | `curl`, `jq`, `coverlet.collector` |
 | [`report-jest.sh`](examples/report-jest.sh) | Tests y cobertura de Jest | `curl`, `jq` |
 | [`report_pytest.py`](examples/report_pytest.py) | Tests y cobertura de pytest | Python 3 (biblioteca estándar) |
 
+### Iniciar sesión desde un script
+
+[`qualitytrack-auth.sh`](examples/qualitytrack-auth.sh) evita tener claves en archivos del repositorio. La
+primera vez pide **empresa, usuario y contraseña**, los cambia por una clave API y guarda esa clave como
+secreto en el llavero del sistema (libsecret, con `secret-tool`); las siguientes corridas no preguntan nada.
+
+```bash
+source examples/qualitytrack-auth.sh
+qualitytrack_load_credentials || exit 1     # deja QUALITYTRACK_URL y QUALITYTRACK_API_KEY listas
+```
+
+```text
+Iniciar sesión en QualityTrack
+Servidor [http://localhost:5210]:
+Empresa: Mi Empresa
+Usuario (correo): ana@miempresa.com
+Contraseña:
+QualityTrack: sesión guardada para ana@miempresa.com en http://localhost:5210.
+```
+
+- **La contraseña no se guarda.** Solo viaja al servidor (`POST /api/v1/cli/login`) para emitir la clave,
+  que queda en "Claves API" con el nombre del equipo y se puede revocar.
+- **En una instalación nueva**, ese primer inicio de sesión crea la empresa y su administrador, igual que
+  la pantalla de configuración inicial. Como ahí un error de tecleo dejaría una cuenta inaccesible, pide la
+  contraseña dos veces y muestra la empresa y el usuario para confirmarlos antes de crear nada.
+- **Sin terminal** (CI) no se puede preguntar: define `QUALITYTRACK_URL` y `QUALITYTRACK_API_KEY`, o bien
+  `QUALITYTRACK_ORGANIZATION`, `QUALITYTRACK_USER` y `QUALITYTRACK_PASSWORD`.
+- `qualitytrack-auth.sh status` muestra con qué cuenta hay sesión y `qualitytrack-auth.sh logout` la borra.
+- Sin `secret-tool`, la clave se guarda en `~/.config/qualitytrack/credentials.json` con permisos 600.
+
 ### SonarQube
 
-Después del análisis, cada proyecto de Sonar se reporta como un componente:
+Después del análisis, cada proyecto de Sonar se reporta como un proyecto de la solución:
 
 ```bash
 export QUALITYTRACK_URL=https://qualitytrack.miempresa.com
@@ -182,17 +290,28 @@ examples/report-sonarqube.sh tienda-online api=tienda-api web=tienda-web
 
 El script consulta `api/measures/component` y traduce las métricas de Sonar a las del catálogo:
 
-| SonarQube | QualityTrack |
-|---|---|
-| `alert_status` (`OK` / `ERROR`) | `quality_gate` (1 / 0) |
-| `coverage`, `line_coverage`, `branch_coverage` | igual |
-| `bugs`, `vulnerabilities`, `security_hotspots`, `code_smells` | igual |
-| `reliability_rating`, `security_rating` | igual (1 = A … 5 = E) |
-| `sqale_rating` | `maintainability_rating` |
-| `sqale_index` | `technical_debt_minutes` |
-| `duplicated_lines_density` | igual |
-| `ncloc` | `lines_of_code` |
-| `tests`, `test_failures`, `test_errors`, `skipped_tests` | objeto `tests` |
+| Categoría | SonarQube | QualityTrack |
+|---|---|---|
+| Calidad | `alert_status` (`OK` / `ERROR`) | `quality_gate` (1 / 0) |
+| Calidad | `reliability_rating`, `bugs` | igual |
+| Calidad | `coverage`, `line_coverage`, `branch_coverage` | igual |
+| Calidad | `tests`, `test_failures`, `test_errors`, `skipped_tests` | objeto `tests` |
+| Seguridad | `security_rating`, `vulnerabilities` | igual |
+| Seguridad | `security_review_rating`, `security_hotspots`, `security_hotspots_reviewed` | igual |
+| Mantenibilidad | `sqale_rating` | `maintainability_rating` |
+| Mantenibilidad | `code_smells` | igual |
+| Mantenibilidad | `sqale_index`, `sqale_debt_ratio` | `technical_debt_minutes`, `technical_debt_ratio` |
+| Mantenibilidad | `duplicated_lines_density`, `duplicated_lines`, `duplicated_blocks` | igual |
+| Mantenibilidad | `violations`, `blocker_violations`, `critical_violations` | `open_issues`, `blocker_issues`, `critical_issues` |
+| Mantenibilidad | `complexity`, `cognitive_complexity` | igual |
+| Mantenibilidad | `ncloc` | `lines_of_code` |
+
+Sonar omite las medidas que no aplican (por ejemplo, hotspots revisados cuando no hay hotspots); esas no
+se envían.
+
+Si `python3` está disponible, el script llama a `sonar_findings.py` y envía también el detalle de cada
+incidencia. El código se lee del árbol de trabajo (el token de análisis de Sonar no suele poder leer
+fuentes), así que cada proyecto puede indicar su carpeta dentro del repositorio: `web=tienda-web:web`.
 
 El servidor de Sonar procesa el análisis unos segundos después de que termina el scanner; si el script
 corre de inmediato puede leer las métricas del análisis anterior. En CI, espera al quality gate
@@ -251,10 +370,10 @@ Si tu herramienta produce un número, se puede seguir: mándalo en `metrics` con
 curl -X POST "$QUALITYTRACK_URL/api/v1/runs" \
   -H "X-Api-Key: $QUALITYTRACK_API_KEY" -H "Content-Type: application/json" \
   -d "{
-    \"project\": \"tienda-online\",
+    \"solution\": \"tienda-online\",
     \"branch\": \"$(git rev-parse --abbrev-ref HEAD)\",
     \"commit\": \"$(git rev-parse HEAD)\",
-    \"components\": [{
+    \"projects\": [{
       \"key\": \"web\",
       \"metrics\": { \"bundle_size_kb\": 512, \"lighthouse_performance\": 91, \"eslint_warnings\": 14 }
     }]
@@ -277,7 +396,7 @@ tests/
 
 Las dependencias apuntan hacia adentro: Web → Infrastructure → Application → Domain.
 
-- Las mediciones se guardan en formato "largo" (corrida, componente, métrica, valor): una métrica nueva no
+- Las mediciones se guardan en formato "largo" (corrida, proyecto, métrica, valor): una métrica nueva no
   requiere migración.
 - Toda consulta lleva el id de la organización del usuario o de la clave API.
 - Las claves API se guardan como hash SHA-256 y solo se muestran al crearlas; las contraseñas, con PBKDF2.
@@ -289,7 +408,7 @@ dotnet ef migrations add <Nombre> -p src/QualityTrack.Infrastructure -s src/Qual
 
 ## Hoja de ruta
 
-- Invitar usuarios y roles por proyecto (hoy cada organización tiene solo el administrador que la creó).
+- Invitar usuarios y roles por solución (hoy cada organización tiene solo el administrador que la creó).
 - Alta de más organizaciones en una misma instalación (hoy la crea la configuración inicial).
 - PostgreSQL o SQL Server como proveedor, para instalaciones con varias instancias.
 - Alertas cuando una corrida empeora, e insignias de estado para el repositorio.

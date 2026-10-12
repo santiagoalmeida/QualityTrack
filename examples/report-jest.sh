@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Corre los tests de un proyecto JavaScript/TypeScript con Jest y reporta la corrida a QualityTrack.
 #
-# Uso: report-jest.sh <proyecto> [componente]
+# Uso: report-jest.sh <solución> [proyecto]
 #   report-jest.sh tienda-online web
 #
 # Variables: QUALITYTRACK_URL, QUALITYTRACK_API_KEY.
@@ -11,23 +11,23 @@ set -euo pipefail
 [ $# -ge 1 ] || { sed -n '2,8p' "$0"; exit 2; }
 : "${QUALITYTRACK_URL:?}" "${QUALITYTRACK_API_KEY:?}"
 
-PROJECT="$1"
-COMPONENT="${2:-frontend}"
+SOLUTION="$1"
+PROJECT="${2:-frontend}"
 
 # jest-results.json trae los conteos de tests; coverage/coverage-summary.json, los porcentajes.
 npx jest --coverage --coverageReporters=json-summary --json --outputFile=jest-results.json || true
 
 payload="$(jq -n \
-  --arg project "$PROJECT" --arg component "$COMPONENT" \
+  --arg solution "$SOLUTION" --arg project "$PROJECT" \
   --arg branch "${BRANCH:-$(git rev-parse --abbrev-ref HEAD)}" \
   --arg commit "$(git rev-parse HEAD)" \
   --argjson dirty "$([ -n "$(git status --porcelain)" ] && echo true || echo false)" \
   --slurpfile results jest-results.json \
   --slurpfile summary coverage/coverage-summary.json \
   '$results[0] as $r | $summary[0].total as $c
-   | {project: $project, branch: $branch, commit: $commit, dirty: $dirty,
-      components: [{
-        key: $component,
+   | {solution: $solution, branch: $branch, commit: $commit, dirty: $dirty,
+      projects: [{
+        key: $project,
         tests: {total: $r.numTotalTests, passed: $r.numPassedTests, failed: $r.numFailedTests,
                 skipped: ($r.numPendingTests + ($r.numTodoTests // 0))},
         metrics: {

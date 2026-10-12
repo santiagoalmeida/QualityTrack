@@ -1,0 +1,128 @@
+@page "/solutions/{Key}/projects/{ProjectKey}/findings/{MetricKey}/rule"
+@inject FindingsService Findings
+
+<PageTitle>@(_rule?.RuleName ?? "Incidencias") · QualityTrack</PageTitle>
+
+@if (_rule is null)
+{
+    <div class="empty">
+        <h1>Sin incidencias de este tipo</h1>
+        <p class="muted">No existen en esta corrida o ya fueron corregidas.</p>
+        <a class="btn btn-primary" href="/">Ir a soluciones</a>
+    </div>
+}
+else
+{
+    var context = _rule.Context;
+    <div class="page-head">
+        <div>
+            <p class="crumb">
+                <a href="/">Soluciones</a> / <a href="@($"/solutions/{context.SolutionKey}{_query}")">@context.SolutionName</a> /
+                <a href="@($"/solutions/{context.SolutionKey}/projects/{context.ProjectKey}{_query}")">@context.ProjectName</a> /
+                <a href="@($"/solutions/{context.SolutionKey}/projects/{context.ProjectKey}/findings/{MetricKey}{_query}")">@context.Metric.Name</a> /
+            </p>
+            <h1>@_rule.RuleName</h1>
+        </div>
+    </div>
+
+    <p class="run-line">
+        <span class="chip">@_rule.RuleKey</span>
+        <span class="muted">@_rule.Total @(_rule.Total == 1 ? "incidencia" : "incidencias") · rama @context.Run.Branch · <code>@Format.ShortCommit(context.Run.CommitSha)</code></span>
+    </p>
+
+    <section class="card">
+        <h2>Sugerencia</h2>
+        @if (_rule.HowToFix is null && _rule.Description is null)
+        {
+            <p class="muted">El reporte no incluyó la explicación de esta regla; el mensaje de cada incidencia indica qué corregir.</p>
+        }
+        @if (_rule.HowToFix is not null)
+        {
+            <h3 class="sub">Cómo corregirla</h3>
+            <div class="prose" tabindex="0">@_rule.HowToFix</div>
+        }
+        @if (_rule.Description is not null)
+        {
+            // With a fix at hand the background is secondary; without one it is all there is.
+            <details class="why" open="@(_rule.HowToFix is null)">
+                <summary>Por qué es un problema</summary>
+                <div class="prose" tabindex="0">@_rule.Description</div>
+            </details>
+        }
+    </section>
+
+    @if (_rule.Total > 1)
+    {
+        <section class="card">
+            <h2>Prompt para corregir las @_rule.Total incidencias</h2>
+            <PromptTabs PromptFor="@(assistant => FixPromptBuilder.ForRule(assistant, _rule))" />
+        </section>
+    }
+
+    <h2 class="list-title">
+        @(_rule.Total == 1 ? "Ubicación" : "Ubicaciones")
+        @if (_rule.Total > _rule.Findings.Count)
+        {
+            <span class="muted">(se muestran las primeras @_rule.Findings.Count de @_rule.Total)</span>
+        }
+    </h2>
+
+    @foreach (var finding in _rule.Findings)
+    {
+        <section class="card finding">
+            <div class="finding-head">
+                <code class="finding-location">@finding.FilePath@(finding.Line is { } line ? $":{line}" : "")</code>
+                @if (finding.Severity is not null)
+                {
+                    <span class="chip @Format.SeverityClass(finding.Severity)">@Format.Severity(finding.Severity)</span>
+                }
+            </div>
+            <p class="finding-message">@finding.Message</p>
+            <CodeSnippet Finding="finding" />
+            <details class="finding-prompt" open="@(_rule.Total == 1)">
+                <summary>@(_rule.Total == 1 ? "Prompt para corregirla" : "Prompt para corregir solo esta")</summary>
+                <PromptTabs PromptFor="@(assistant => FixPromptBuilder.ForFinding(assistant, _rule, finding))" />
+            </details>
+        </section>
+    }
+}
+
+@code {
+    private RuleFindings? _rule;
+    private string _query = "";
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [Parameter]
+    public string Key { get; set; } = "";
+
+    [Parameter]
+    public string ProjectKey { get; set; } = "";
+
+    [Parameter]
+    public string MetricKey { get; set; } = "";
+
+    [SupplyParameterFromQuery(Name = "key")]
+    private string? RuleKey { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? Branch { get; set; }
+
+    [SupplyParameterFromQuery]
+    private Guid? Run { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _rule = RuleKey is null
+            ? null
+            : await Findings.GetRuleFindingsAsync(HttpContext.User.OrganizationId(), Key, ProjectKey, MetricKey, RuleKey, Branch, Run);
+        if (_rule is null)
+        {
+            HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        _query = $"?branch={Uri.EscapeDataString(_rule.Context.Run.Branch)}&run={_rule.Context.Run.Id}";
+    }
+}

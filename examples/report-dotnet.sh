@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Corre los tests de una solución .NET con cobertura y reporta la corrida a QualityTrack, sin SonarQube.
 #
-# Uso: report-dotnet.sh <proyecto> [componente] [ruta de la solución o del proyecto de tests]
+# Uso: report-dotnet.sh <solución> [proyecto] [ruta de la solución o del proyecto de tests]
 #   report-dotnet.sh tienda-online api tests/Tienda.Tests
 #
 # Variables: QUALITYTRACK_URL, QUALITYTRACK_API_KEY.
@@ -11,8 +11,8 @@ set -euo pipefail
 [ $# -ge 1 ] || { sed -n '2,8p' "$0"; exit 2; }
 : "${QUALITYTRACK_URL:?}" "${QUALITYTRACK_API_KEY:?}"
 
-PROJECT="$1"
-COMPONENT="${2:-backend}"
+SOLUTION="$1"
+PROJECT="${2:-backend}"
 TARGET="${3:-.}"
 RESULTS="$(mktemp -d)"
 trap 'rm -rf "$RESULTS"' EXIT
@@ -34,15 +34,15 @@ line_rate="$(attr line-rate <<<"$coverage")"
 branch_rate="$(attr branch-rate <<<"$coverage")"
 
 payload="$(jq -n \
-  --arg project "$PROJECT" --arg component "$COMPONENT" \
+  --arg solution "$SOLUTION" --arg project "$PROJECT" \
   --arg branch "${BRANCH:-$(git rev-parse --abbrev-ref HEAD)}" \
   --arg commit "$(git rev-parse HEAD)" \
   --argjson dirty "$([ -n "$(git status --porcelain)" ] && echo true || echo false)" \
   --argjson total "$total" --argjson passed "$passed" --argjson failed "$failed" \
   --argjson line "$line_rate" --argjson branchRate "$branch_rate" \
-  '{project: $project, branch: $branch, commit: $commit, dirty: $dirty,
-    components: [{
-      key: $component,
+  '{solution: $solution, branch: $branch, commit: $commit, dirty: $dirty,
+    projects: [{
+      key: $project,
       tests: {total: $total, passed: $passed, failed: $failed, skipped: ($total - $passed - $failed)},
       metrics: {
         coverage: ($line * 100 * 10 | round / 10),

@@ -4,7 +4,7 @@ namespace QualityTrack.Domain.Entities;
 public class Run
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid ProjectId { get; set; }
+    public Guid SolutionId { get; set; }
     public required string Branch { get; set; }
     public string? CommitSha { get; set; }
     /// <summary>True when the working tree had uncommitted changes.</summary>
@@ -13,6 +13,6 @@ public class Run
     public string? Source { get; set; }
     public DateTime ExecutedAt { get; set; }
 
-    public Project? Project { get; set; }
+    public Solution? Solution { get; set; }
     public List<Measurement> Measurements { get; set; } = [];
 }
