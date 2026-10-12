@@ -1,0 +1,39 @@
+@if (Comparison.Previous is null)
+{
+    <span class="delta delta-flat">—</span>
+}
+else
+{
+    <span class="delta @CssClass">
+        <span aria-hidden="true">@Icon</span>
+        @Format.Delta(Comparison)
+        <span class="sr-only">@Meaning</span>
+    </span>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public MetricComparison Comparison { get; set; } = default!;
+
+    // The arrow follows the number; the colour and the hidden label say whether that is good.
+    private string Icon => Comparison.Delta switch
+    {
+        > 0 => "▲",
+        < 0 => "▼",
+        _ => "＝"
+    };
+
+    private string CssClass => Comparison.Trend switch
+    {
+        Trend.Improved => "delta-good",
+        Trend.Worsened => "delta-bad",
+        _ => "delta-flat"
+    };
+
+    private string Meaning => Comparison.Trend switch
+    {
+        Trend.Improved => "(mejoró)",
+        Trend.Worsened => "(empeoró)",
+        _ => ""
+    };
+}

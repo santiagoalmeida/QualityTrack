@@ -1,0 +1,129 @@
+@page "/settings/api-keys"
+@using QualityTrack.Application.ApiKeys
+@inject ApiKeyService Keys
+
+<PageTitle>Claves API · QualityTrack</PageTitle>
+
+<div class="page-head">
+    <h1>Claves API</h1>
+</div>
+
+<p class="lead">Las claves identifican a tu organización cuando un pipeline o un script reporta una corrida.</p>
+
+@if (_created is not null)
+{
+    <div class="alert alert-ok" role="status">
+        <p><strong>Clave «@_created.Info.Name» creada.</strong> Cópiala ahora: no se volverá a mostrar.</p>
+        <pre><code>@_created.Secret</code></pre>
+    </div>
+}
+@if (_error is not null)
+{
+    <p class="alert alert-error" role="alert">@_error</p>
+}
+
+<section class="card">
+    <h2>Nueva clave</h2>
+    <form method="post" @formname="create-key" @onsubmit="CreateAsync" class="form-inline">
+        <AntiforgeryToken />
+        <label>
+            Nombre
+            <input name="Name" maxlength="80" placeholder="p. ej. CI de mi-app" required />
+        </label>
+        <button type="submit" class="btn btn-primary">Crear clave</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Claves</h2>
+    @if (_keys.Count == 0)
+    {
+        <p class="muted">Aún no hay claves.</p>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Clave</th>
+                        <th>Creada</th>
+                        <th>Último uso</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var key in _keys)
+                    {
+                        <tr>
+                            <td>@key.Name</td>
+                            <td><code>@(key.Prefix)…</code></td>
+                            <td>@Format.Date(key.CreatedAt)</td>
+                            <td class="muted">@(key.LastUsedAt is { } used ? Format.Date(used) : "nunca")</td>
+                            <td class="num">
+                                @if (key.RevokedAt is not null)
+                                {
+                                    <span class="chip chip-warn">revocada</span>
+                                }
+                                else
+                                {
+                                    <form method="post" @formname="@($"revoke-{key.Id:N}")" @onsubmit="RevokeAsync">
+                                        <AntiforgeryToken />
+                                        <input type="hidden" name="KeyId" value="@key.Id" />
+                                        <button type="submit" class="btn btn-danger">Revocar</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+<section class="card">
+    <h2>Cómo reportar una corrida</h2>
+    <IngestGuide />
+</section>
+
+@code {
+    private IReadOnlyList<ApiKeyInfo> _keys = [];
+    private CreatedApiKey? _created;
+    private string? _error;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private string? Name { get; set; }
+
+    [SupplyParameterFromForm]
+    private Guid? KeyId { get; set; }
+
+    private Guid OrganizationId => HttpContext.User.OrganizationId();
+
+    protected override async Task OnInitializedAsync() => _keys = await Keys.ListAsync(OrganizationId);
+
+    private async Task CreateAsync()
+    {
+        try
+        {
+            _created = await Keys.CreateAsync(OrganizationId, Name);
+        }
+        catch (ValidationException ex)
+        {
+            _error = ex.Message;
+        }
+
+        _keys = await Keys.ListAsync(OrganizationId);
+    }
+
+    private async Task RevokeAsync()
+    {
+        if (KeyId is { } id)
+            await Keys.RevokeAsync(OrganizationId, id);
+        _keys = await Keys.ListAsync(OrganizationId);
+    }
+}

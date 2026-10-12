@@ -1,0 +1,18 @@
+<div class="meter @(Met ? "meter-met" : null)" role="progressbar" aria-label="@Label" aria-valuemin="0" aria-valuemax="100"
+     aria-valuenow="@Whole">
+    <div class="meter-fill" style="width: @(Whole)%"></div>
+</div>
+
+@code {
+    /// <summary>Progress as a 0..1 fraction.</summary>
+    [Parameter, EditorRequired]
+    public double Value { get; set; }
+
+    [Parameter]
+    public bool Met { get; set; }
+
+    [Parameter]
+    public string Label { get; set; } = "Avance";
+
+    private int Whole => (int)Math.Round(Math.Clamp(Value, 0, 1) * 100);
+}

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/QualityTrack.Application/QualityTrack.Application.csproj" />
+    <Project Path="src/QualityTrack.Domain/QualityTrack.Domain.csproj" />
+    <Project Path="src/QualityTrack.Infrastructure/QualityTrack.Infrastructure.csproj" />
+    <Project Path="src/QualityTrack.Web/QualityTrack.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/QualityTrack.Tests/QualityTrack.Tests.csproj" />
+  </Folder>
+</Solution>

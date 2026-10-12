@@ -1,0 +1,57 @@
+@page "/login"
+@layout AuthLayout
+@attribute [AllowAnonymous]
+@using QualityTrack.Application.Accounts
+@inject AccountService Accounts
+@inject NavigationManager Navigation
+
+<PageTitle>Iniciar sesión · QualityTrack</PageTitle>
+
+<h1>Iniciar sesión</h1>
+
+@if (_failed)
+{
+    <p class="alert alert-error" role="alert">Correo o contraseña incorrectos.</p>
+}
+
+<form method="post" @formname="login" @onsubmit="SignInAsync" class="form">
+    <AntiforgeryToken />
+    <label>
+        Correo
+        <input type="email" name="Email" value="@Email" autocomplete="username" required autofocus />
+    </label>
+    <label>
+        Contraseña
+        <input type="password" name="Password" autocomplete="current-password" required />
+    </label>
+    <button type="submit" class="btn btn-primary">Entrar</button>
+</form>
+
+@code {
+    private bool _failed;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private string? Email { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? Password { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private async Task SignInAsync()
+    {
+        var user = await Accounts.SignInAsync(Email, Password);
+        if (user is null)
+        {
+            _failed = true;
+            return;
+        }
+
+        await AuthCookie.SignInAsync(HttpContext, user);
+        Navigation.NavigateTo(AuthCookie.SafeReturnUrl(ReturnUrl));
+    }
+}

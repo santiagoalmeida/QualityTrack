@@ -1,0 +1,99 @@
+QualityTrack Community License
+Version 1.0
+
+Copyright (c) 2026 Santiago Almeida. All rights reserved.
+
+QualityTrack (the "Software") is the intellectual property of Santiago Almeida
+(the "Licensor"). The Software is source-available: its source code is public,
+but it is not open-source software. You may use it only under the terms below
+or under a separate commercial license signed with the Licensor.
+
+1. Definitions
+
+"You" means the individual or legal entity exercising rights under this
+license.
+
+"Independent Developer" means a natural person who uses the Software on their
+own account - not on behalf of, or for the benefit of, a company or other
+organization - and whose Annual Revenue does not exceed USD 10,000.
+
+"Annual Revenue" means the total gross revenue, from all sources connected
+with your professional or business activity, received during the twelve (12)
+months before the date on which you use the Software, expressed in United
+States dollars.
+
+"Organization" means any company, corporation, partnership, government body,
+non-profit, or other legal entity, and any individual acting on its behalf or
+for its benefit.
+
+2. Free use for Independent Developers
+
+If you are an Independent Developer, the Licensor grants you a non-exclusive,
+non-transferable, royalty-free license, for as long as you remain an
+Independent Developer, to:
+
+  (a) use, run and self-host the Software, including for your own commercial
+      projects;
+  (b) copy and modify the Software for your own use; and
+  (c) share your modifications in source form, provided they stay under this
+      same license and keep this file and all copyright notices intact.
+
+3. Evaluation
+
+Anyone may run the Software for up to thirty (30) days solely to evaluate it,
+without using it in production.
+
+4. Organizations and anyone above the threshold
+
+If you are an Organization, or an individual whose Annual Revenue exceeds
+USD 10,000, you may not use the Software beyond the evaluation in section 3
+unless you have a commercial license negotiated and signed with the Licensor.
+
+If you were an Independent Developer and stop being one, you have ninety (90)
+days to obtain a commercial license or stop using the Software.
+
+To request a commercial license, contact Santiago Almeida:
+https://github.com/santiagoalmeida
+
+5. Restrictions
+
+Without a commercial license that says otherwise, you may not:
+
+  (a) sell, rent, sublicense or otherwise commercialize the Software or a
+      modified version of it;
+  (b) offer the Software, or a substantial part of its functionality, to
+      third parties as a hosted or managed service;
+  (c) remove or alter any copyright, license or attribution notice; or
+  (d) use the name "QualityTrack" or the Licensor's name to endorse or promote
+      products derived from the Software.
+
+6. Contributions
+
+Unless agreed otherwise in writing, by submitting a contribution to the
+Software you grant the Licensor a perpetual, worldwide, irrevocable,
+royalty-free license to use, modify, sublicense and relicense that
+contribution, including as part of commercial licenses of the Software.
+
+7. Ownership
+
+The Software is licensed, not sold. The Licensor keeps all rights, title and
+interest in the Software, including all intellectual property rights. No
+rights are granted other than those expressly stated in this license.
+
+8. Termination
+
+This license ends automatically if you breach any of its terms. When it ends
+you must stop using the Software and destroy the copies you hold.
+
+9. No warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+10. Limitation of liability
+
+IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

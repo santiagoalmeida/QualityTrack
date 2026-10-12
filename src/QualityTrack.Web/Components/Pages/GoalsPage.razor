@@ -1,0 +1,162 @@
+@page "/projects/{Key}/goals"
+@using System.Globalization
+@using QualityTrack.Application.Goals
+@inject GoalService Goals
+
+<PageTitle>Metas · @(_goals?.Name ?? "Proyecto") · QualityTrack</PageTitle>
+
+@if (_goals is null)
+{
+    <div class="empty">
+        <h1>Proyecto no encontrado</h1>
+        <a class="btn btn-primary" href="/">Ir a proyectos</a>
+    </div>
+}
+else
+{
+    <div class="page-head">
+        <div>
+            <p class="crumb"><a href="/">Proyectos</a> / <a href="@($"/projects/{_goals.Key}")">@_goals.Name</a> /</p>
+            <h1>Metas</h1>
+        </div>
+    </div>
+
+    <p class="lead">
+        El avance de cada métrica se mide desde su valor inicial (el que tenía al fijar la meta) hasta la meta.
+        Deja una meta vacía para quitarla.
+    </p>
+
+    @if (_saved)
+    {
+        <p class="alert alert-ok" role="status">Metas guardadas.</p>
+    }
+    @foreach (var error in _errors)
+    {
+        <p class="alert alert-error" role="alert">@error</p>
+    }
+
+    @if (_goals.Components.Count == 0)
+    {
+        <section class="card"><p class="muted">El proyecto aún no tiene corridas con métricas.</p></section>
+    }
+    else
+    {
+        <form method="post" @formname="goals" @onsubmit="SaveAsync">
+            <AntiforgeryToken />
+            @foreach (var component in _goals.Components)
+            {
+                <section class="card">
+                    <h2>@component.Name</h2>
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Métrica</th>
+                                    <th class="num">Valor inicial</th>
+                                    <th class="num">Valor actual</th>
+                                    <th>Meta</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in component.Items)
+                                {
+                                    <tr>
+                                        <td>
+                                            <label for="@FieldName(component.ComponentId, item.Metric.Key)">@item.Metric.Name</label>
+                                            <span class="group">@Hint(item.Metric)</span>
+                                        </td>
+                                        <td class="num muted">@(item.Baseline is { } baseline ? Format.Value(item.Metric, baseline) : "—")</td>
+                                        <td class="num">@Format.Value(item.Metric, item.Current)</td>
+                                        <td>
+                                            <input class="input-num" type="number" step="any"
+                                                   id="@FieldName(component.ComponentId, item.Metric.Key)"
+                                                   name="@FieldName(component.ComponentId, item.Metric.Key)"
+                                                   value="@(item.Target is { } target ? Format.Invariant(target) : null)" />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            }
+            <button type="submit" class="btn btn-primary">Guardar metas</button>
+        </form>
+    }
+}
+
+@code {
+    private ProjectGoals? _goals;
+    private bool _saved;
+    private List<string> _errors = [];
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [Parameter]
+    public string Key { get; set; } = "";
+
+    private Guid OrganizationId => HttpContext.User.OrganizationId();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _goals = await Goals.GetAsync(OrganizationId, Key);
+        if (_goals is null)
+            HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+    }
+
+    // One form carries every target, so the fields are read straight from the request instead of bound one by one.
+    private async Task SaveAsync()
+    {
+        if (_goals is null)
+            return;
+
+        var form = HttpContext.Request.Form;
+        foreach (var component in _goals.Components)
+        {
+            foreach (var item in component.Items)
+            {
+                // A field that was not submitted is left alone; only one sent empty removes the goal.
+                if (!form.TryGetValue(FieldName(component.ComponentId, item.Metric.Key), out var submitted))
+                    continue;
+
+                var raw = submitted.ToString().Trim();
+                try
+                {
+                    if (raw.Length == 0)
+                    {
+                        if (item.Target is not null)
+                            await Goals.RemoveAsync(OrganizationId, Key, component.ComponentId, item.Metric.Key);
+                    }
+                    else if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var target))
+                    {
+                        _errors.Add($"{component.Name} · {item.Metric.Name}: la meta debe ser un número.");
+                    }
+                    else if (target != item.Target)
+                    {
+                        await Goals.SetAsync(OrganizationId, Key, component.ComponentId, item.Metric.Key, target);
+                    }
+                }
+                catch (ValidationException ex)
+                {
+                    _errors.Add($"{component.Name} · {item.Metric.Name}: {ex.Message}");
+                }
+            }
+        }
+
+        _saved = _errors.Count == 0;
+        _goals = await Goals.GetAsync(OrganizationId, Key);
+    }
+
+    private static string FieldName(Guid componentId, string metricKey) => $"target:{componentId:N}:{metricKey}";
+
+    private static string Hint(MetricDefinition metric) => metric.Unit switch
+    {
+        MetricUnit.Percent => "en %",
+        MetricUnit.Minutes => "en minutos",
+        MetricUnit.Seconds => "en segundos",
+        MetricUnit.Rating => "1 = A … 5 = E",
+        MetricUnit.Flag => "1 = OK",
+        _ => metric.Direction == MetricDirection.LowerIsBetter ? "menos es mejor" : "más es mejor"
+    };
+}

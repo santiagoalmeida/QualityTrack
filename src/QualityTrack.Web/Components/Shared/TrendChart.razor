@@ -1,0 +1,88 @@
+@* One series per chart (small multiples): the title names it, so there is no legend. *@
+<figure class="chart">
+    <figcaption>
+        <span class="chart-title">@Series.Metric.Name</span>
+        <span class="muted">@Series.ComponentName</span>
+    </figcaption>
+    <svg viewBox="0 0 @Width @Height" role="img" aria-label="@Summary">
+        @foreach (var tick in new[] { _max, (_max + _min) / 2, _min })
+        {
+            <line class="chart-grid" x1="@Left" x2="@(Width - Right)" y1="@N(Y(tick))" y2="@N(Y(tick))" />
+        }
+        <text class="chart-axis" x="@Left" y="@N(Y(_max) - 4)">@Format.Value(Series.Metric, _max)</text>
+        <text class="chart-axis" x="@Left" y="@N(Y(_min) - 4)">@Format.Value(Series.Metric, _min)</text>
+
+        @if (Points.Count > 1)
+        {
+            <polyline class="chart-line" points="@string.Join(" ", Points.Select((p, i) => $"{N(X(i))},{N(Y(p.Value))}"))" />
+        }
+
+        @for (var i = 0; i < Points.Count; i++)
+        {
+            var point = Points[i];
+            <g class="chart-point">
+                <rect class="chart-hit" x="@N(X(i) - Step / 2)" y="0" width="@N(Step)" height="@(Height - Bottom)">
+                    <title>@($"{Format.Date(point.At)} · {point.Label}: {Format.Value(Series.Metric, point.Value)}")</title>
+                </rect>
+                <line class="chart-cross" x1="@N(X(i))" x2="@N(X(i))" y1="@Top" y2="@(Height - Bottom)" />
+                <circle class="chart-dot" cx="@N(X(i))" cy="@N(Y(point.Value))" r="4" />
+            </g>
+        }
+
+        <circle class="chart-dot chart-dot-last" cx="@N(X(Points.Count - 1))" cy="@N(Y(Last.Value))" r="4" />
+        <text class="chart-value" x="@N(X(Points.Count - 1) + 9)" y="@N(Y(Last.Value) + 4)">@Format.Value(Series.Metric, Last.Value)</text>
+
+        <text class="chart-axis" x="@Left" y="@(Height - 6)">@Format.ShortDate(Points[0].At)</text>
+        @if (Points.Count > 1)
+        {
+            @* Wrapped in a group: a bare <text> inside a code block is Razor's own tag. *@
+            <g><text class="chart-axis" x="@(Width - Right)" y="@(Height - 6)" text-anchor="end">@Format.ShortDate(Last.At)</text></g>
+        }
+    </svg>
+</figure>
+
+@code {
+    private const int Width = 320;
+    private const int Height = 150;
+    private const int Left = 6;
+    private const int Right = 58;
+    private const int Top = 20;
+    private const int Bottom = 24;
+
+    private double _min;
+    private double _max;
+
+    [Parameter, EditorRequired]
+    public TrendSeries Series { get; set; } = default!;
+
+    private IReadOnlyList<TrendPoint> Points => Series.Points;
+    private TrendPoint Last => Points[^1];
+    private double Step => Points.Count > 1 ? (Width - Left - Right) / (double)(Points.Count - 1) : Width - Left - Right;
+
+    private string Summary =>
+        $"{Series.Metric.Name} de {Series.ComponentName}: {Format.Value(Series.Metric, Last.Value)} en la última de {Points.Count} corridas.";
+
+    protected override void OnParametersSet()
+    {
+        var low = Points.Min(p => p.Value);
+        var high = Points.Max(p => p.Value);
+        // A flat series still needs a visible band around it.
+        var padding = high > low ? (high - low) * 0.15 : Math.Max(Math.Abs(high) * 0.1, 1);
+        _min = low >= 0 ? Math.Max(0, low - padding) : low - padding;
+        _max = high + padding;
+
+        // The two labelled gridlines are the ends of the domain, so they land on round numbers:
+        // whole units for counts, one decimal for everything else.
+        var digits = Series.Metric.Unit == MetricUnit.Count ? 0 : 1;
+        var unit = Math.Pow(10, -digits);
+        _min = Math.Floor(_min / unit) * unit;
+        _max = Math.Ceiling(_max / unit) * unit;
+    }
+
+    private double X(int index) =>
+        Points.Count > 1 ? Left + index * Step : Left + (Width - Left - Right) / 2.0;
+
+    private double Y(double value) => Top + (_max - value) / (_max - _min) * (Height - Top - Bottom);
+
+    private static string N(double value) => Format.Invariant(value);
+}

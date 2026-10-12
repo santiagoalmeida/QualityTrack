@@ -1,0 +1,29 @@
+@inherits LayoutComponentBase
+
+<header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>QualityTrack</a>
+    <nav class="topnav" aria-label="Principal">
+        <NavLink href="/" Match="NavLinkMatch.All">Proyectos</NavLink>
+        <NavLink href="/settings/api-keys">Claves API</NavLink>
+    </nav>
+    @if (HttpContext?.User.Identity?.IsAuthenticated == true)
+    {
+        <div class="topbar-user">
+            <span class="org">@HttpContext.User.OrganizationName()</span>
+            <span class="muted">@HttpContext.User.Identity.Name</span>
+            <form method="post" action="/logout">
+                <AntiforgeryToken />
+                <button type="submit" class="btn btn-quiet">Salir</button>
+            </form>
+        </div>
+    }
+</header>
+
+<main class="page">
+    @Body
+</main>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+}

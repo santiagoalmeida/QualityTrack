@@ -1,0 +1,77 @@
+@page "/setup"
+@layout AuthLayout
+@attribute [AllowAnonymous]
+@using QualityTrack.Application.Accounts
+@inject AccountService Accounts
+@inject NavigationManager Navigation
+
+<PageTitle>Configuración inicial · QualityTrack</PageTitle>
+
+<h1>Configuración inicial</h1>
+<p class="muted">Crea tu organización y la cuenta de administración.</p>
+
+@foreach (var error in _errors)
+{
+    <p class="alert alert-error" role="alert">@error</p>
+}
+
+<form method="post" @formname="setup" @onsubmit="CreateAsync" class="form">
+    <AntiforgeryToken />
+    <label>
+        Organización
+        <input name="OrganizationName" value="@OrganizationName" maxlength="120" required autofocus />
+    </label>
+    <label>
+        Tu nombre
+        <input name="DisplayName" value="@DisplayName" maxlength="120" autocomplete="name" required />
+    </label>
+    <label>
+        Correo
+        <input type="email" name="Email" value="@Email" autocomplete="username" required />
+    </label>
+    <label>
+        Contraseña
+        <input type="password" name="Password" minlength="@AccountService.MinPasswordLength" autocomplete="new-password" required />
+        <span class="hint">Al menos @AccountService.MinPasswordLength caracteres.</span>
+    </label>
+    <button type="submit" class="btn btn-primary">Crear organización</button>
+</form>
+
+@code {
+    private IReadOnlyList<string> _errors = [];
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private string? OrganizationName { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? DisplayName { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? Email { get; set; }
+
+    [SupplyParameterFromForm]
+    private string? Password { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (HttpMethods.IsGet(HttpContext.Request.Method) && !await Accounts.IsSetupRequiredAsync())
+            Navigation.NavigateTo("/login");
+    }
+
+    private async Task CreateAsync()
+    {
+        try
+        {
+            var user = await Accounts.SetupAsync(new SetupRequest(OrganizationName, DisplayName, Email, Password));
+            await AuthCookie.SignInAsync(HttpContext, user);
+            Navigation.NavigateTo("/");
+        }
+        catch (ValidationException ex)
+        {
+            _errors = ex.Errors;
+        }
+    }
+}

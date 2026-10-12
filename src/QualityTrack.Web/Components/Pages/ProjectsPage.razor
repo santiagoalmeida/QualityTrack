@@ -1,0 +1,92 @@
+@page "/"
+@inject DashboardService Dashboard
+@inject TimeProvider Clock
+
+<PageTitle>Proyectos · QualityTrack</PageTitle>
+
+<div class="page-head">
+    <h1>Proyectos</h1>
+</div>
+
+@if (_projects.Count == 0)
+{
+    <section class="card">
+        <h2>Aún no hay corridas</h2>
+        <p>Crea una <a href="/settings/api-keys">clave API</a> y reporta la primera corrida de tu aplicación.</p>
+        <IngestGuide />
+    </section>
+}
+else
+{
+    <div class="project-grid">
+        @foreach (var project in _projects)
+        {
+            <a class="card project-card" href="@($"/projects/{project.Key}")">
+                <div class="project-card-head">
+                    <h2>@project.Name</h2>
+                    <span class="muted">@project.RunCount @(project.RunCount == 1 ? "corrida" : "corridas")</span>
+                </div>
+
+                @if (project.LastRun is { } run)
+                {
+                    <p class="run-line">
+                        <span class="chip">@run.Branch</span>
+                        <span class="muted" title="@Format.Date(run.ExecutedAt)">@Format.Ago(run.ExecutedAt, _now)</span>
+                    </p>
+                }
+
+                @if (project.Progress is { } progress)
+                {
+                    <div class="progress-row">
+                        <span class="progress-figure">@Format.Percent(progress)</span>
+                        <span class="muted">de avance hacia las metas</span>
+                        @if (project.PreviousProgress is { } previous)
+                        {
+                            <span class="delta @DeltaClass(progress - previous)">@Format.Points(progress - previous)</span>
+                        }
+                    </div>
+                    <ProgressBar Value="progress" Met="progress >= 1" Label="Avance hacia las metas" />
+                }
+
+                @foreach (var component in project.Components)
+                {
+                    <dl class="highlights">
+                        <dt>@component.Name</dt>
+                        @foreach (var metric in component.Metrics)
+                        {
+                            <dd>
+                                <span class="muted">@metric.Metric.Name</span>
+                                <strong>@Format.Value(metric.Metric, metric.Current)</strong>
+                                @if (metric.Delta is not null and not 0)
+                                {
+                                    <DeltaBadge Comparison="metric" />
+                                }
+                            </dd>
+                        }
+                    </dl>
+                }
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<ProjectSummary> _projects = [];
+    private DateTime _now;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _now = Clock.GetUtcNow().UtcDateTime;
+        _projects = await Dashboard.GetOverviewAsync(HttpContext.User.OrganizationId());
+    }
+
+    private static string DeltaClass(double delta) => delta switch
+    {
+        > 0 => "delta-good",
+        < 0 => "delta-bad",
+        _ => "delta-flat"
+    };
+}
